@@ -69,6 +69,16 @@ main {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --color-primary-50: 336 100% 97%;
+    --color-primary-100: 336 100% 95%;
+    --color-primary-200: 336 100% 92%;
+    --color-primary-300: 336 100% 85%;
+    --color-primary-400: 336 100% 77%;
+    --color-primary-500: 336 100% 69%;
+    --color-primary-600: 336 100% 60%;
+    --color-primary-700: 336 100% 52%;
+    --color-primary-800: 336 100% 44%;
+    --color-primary-900: 336 100% 36%;
   }
   .dark {
     --background: 224 71.4% 4.1%;
@@ -95,6 +105,16 @@ main {
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --color-primary-50: 336 100% 97%;
+    --color-primary-100: 336 100% 95%;
+    --color-primary-200: 336 100% 92%;
+    --color-primary-300: 336 100% 85%;
+    --color-primary-400: 336 100% 77%;
+    --color-primary-500: 336 100% 69%;
+    --color-primary-600: 336 100% 60%;
+    --color-primary-700: 336 100% 52%;
+    --color-primary-800: 336 100% 44%;
+    --color-primary-900: 336 100% 36%;
   }
 }
 

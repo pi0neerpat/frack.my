@@ -27,8 +27,8 @@ export function Navbar() {
               className="text-xl font-semibold hover:opacity-80 transition-opacity"
             >
               <div className="flex items-center gap-2 font-bold">
-                <Droplets className="h-8 w-8 text-pink-500" />
-                <span className="text-pink-500">Web3 Dapp Template</span>
+                <Droplets className="h-8 w-8 text-primary-500" />
+                <span className="text-primary-500">Web3 Dapp Template</span>
               </div>
             </Link>
           </div>
@@ -37,12 +37,12 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-pink-600 dark:hover:text-pink-400 transition-colors px-4 py-2 mx-2"
+                className="relative text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors px-4 py-2 mx-2"
               >
                 {item.label}
                 {pathname === item.href && (
                   <motion.div
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
                     layoutId="underline"
                     initial={false}
                   />
@@ -71,7 +71,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-pink-600 dark:hover:text-pink-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 onClick={() => setIsOpen(false)}
               >
                 {item.label}
