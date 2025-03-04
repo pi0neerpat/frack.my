@@ -28,12 +28,12 @@ packages/webapp
 ├── package.json
 ├── postcss.config.js
 ├── src
-│ ├── app
-│ ├── components
-│ ├── config
-│ ├── context
-│ ├── hooks
-│ └── lib
+│   ├── app
+│   ├── components
+│   ├── config
+│   ├── context
+│   ├── hooks
+│   └── lib
 ├── tailwind.config.js
 └── tsconfig.json
 ```
