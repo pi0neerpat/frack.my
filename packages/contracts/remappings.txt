@@ -1,0 +1,5 @@
+@superfluid-finance/ethereum-contracts/=lib/superfluid-protocol/packages/ethereum-contracts/
+@superfluid-finance/solidity-semantic-money/=lib/superfluid-protocol/packages/solidity-semantic-money/
+@superfluid-finance/automation-contracts/=lib/superfluid-protocol/packages/automation-contracts/
+@openzeppelin/contracts/=lib/openzeppelin-contracts-v4/contracts/
+@openzeppelin-v5/contracts/=lib/openzeppelin-contracts-v5/contracts/
