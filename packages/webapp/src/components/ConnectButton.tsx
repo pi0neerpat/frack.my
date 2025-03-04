@@ -23,7 +23,7 @@ export function ConnectButton() {
     <ConnectedButton address={address_} />
   ) : (
     <Button
-      className="min-w-[140px] bg-primary-500 hover:bg-primary-600 text-white"
+      className="min-w-[140px] bg-accent hover:bg-primary-600 text-white"
       onClick={() => {
         if (!isLoading) {
           open({

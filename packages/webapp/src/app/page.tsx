@@ -8,7 +8,7 @@ export default function HomePage() {
       <main className="container mx-auto py-0 px-4 sm:px-6 lg:px-8">
         <Card className="mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-xl">
           <CardHeader>
-            <CardTitle className="text-4xl font-bold text-primary-500">
+            <CardTitle className="text-4xl font-bold text-accent">
               Root Page - Title
             </CardTitle>
             <p className="mt-2 text-muted-foreground">

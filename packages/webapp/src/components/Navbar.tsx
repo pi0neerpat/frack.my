@@ -27,8 +27,8 @@ export function Navbar() {
               className="text-xl font-semibold hover:opacity-80 transition-opacity"
             >
               <div className="flex items-center gap-2 font-bold">
-                <Droplets className="h-8 w-8 text-primary-500" />
-                <span className="text-primary-500">Web3 Dapp Template</span>
+                <Droplets className="h-8 w-8 text-accent" />
+                <span className="text-accent">Web3 Dapp Template</span>
               </div>
             </Link>
           </div>
@@ -42,7 +42,7 @@ export function Navbar() {
                 {item.label}
                 {pathname === item.href && (
                   <motion.div
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"
                     layoutId="underline"
                     initial={false}
                   />
