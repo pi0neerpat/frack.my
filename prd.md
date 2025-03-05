@@ -1,6 +1,4 @@
-# Demo Project - Web3 Superfluid Platform
-
-## Project Overview
+## Project Overview - Frack.My
 
 You are building a web3 platform that allows:
 
@@ -9,262 +7,230 @@ You are building a web3 platform that allows:
 
 The team has already built the smart contracts, and you will be building the webapp using NextJS, shadcn, tailwindcss. For Web3 interactions, you will be using wagmi, viem, and reown web3 libraries.
 
-## Technical Architecture
+## Implementation Details
 
-### File Structure
+### Theme and Design System
 
-```
-webapp/src/
-├── app/
-│   ├── page.tsx               # Landing page (/)
-│   ├── pools/
-│   │   └── page.tsx           # Community Owner page (/pools)
-│   ├── rewards/
-│   │   └── page.tsx           # Community Member page (/rewards)
-│   └── layout.tsx             # Root layout with providers
-├── components/
-│   ├── LandingCard.tsx        # Cards for landing page
-│   ├── PoolForm.tsx           # Form to create a pool
-│   ├── PoolFunding.tsx        # Component for funding pools
-│   ├── PoolList.tsx           # List of pools (used in rewards page)
-│   └── PoolCard.tsx           # Individual pool card with subscribe buttons
-├── hooks/
-│   ├── usePoolData.ts         # Hook to fetch pool data 
-│   ├── useCreatePool.ts       # Hook for pool creation
-│   ├── useFundPool.ts         # Hook for funding pools
-│   └── useManageUnits.ts      # Hook for collecting/decreasing units
-├── context/
-│   └── index.tsx              # Existing Web3 context provider
-└── config/
-    ├── contracts.ts           # Existing file with contract info
-    └── index.ts               # Web3 configuration (wagmiAdapter, projectId, networks)
-```
+- Use `shadcn/ui` components with custom styling
+- Dark theme colors:
+  - Primary: Deep purple (#663399) for oil pool and accents
+  - Background: Near black (#121212) 
+  - Text: Off-white (#F5F5F5)
+- Animations:
+  - Use `framer-motion` for fluid animations
+  - Oil pool ripple effect: Subtle wave animation at 0.5 opacity
+  - Asset name rotation: 3 second fade transition between names
 
-## Core Features - Implementation Details
+### Navigation
+
+- Persistent header with:
+  - Logo (left)
+  - Connect Wallet button (right)
+  - Theme toggle (right of wallet)
+- Page transitions using `barba.js`:
+  - Fade duration: 0.3s
+  - Slide direction: Right to left for forward navigation
+
+### Landing Page Details
+
+- Hero section:
+  - Font: Space Grotesk, 64px
+  - Asset name rotation interval: 3s
+  - Underline effect: Gradient purple (#663399 to #9966CC)
+- Drill Carousel:
+  - Max visible cards: 3
+  - Card dimensions: 320px × 400px
+  - Spacing between cards: 24px
+  - Infinite scroll behavior
+- Oil Pool:
+  - Height: 25vh
+  - Animation: CSS keyframes for gentle wave motion
+  - Counter animation for earned amount
+  - Flow rate updates every 5 seconds
+
+### Fluid List Page
+
+- Table columns:
+  - Asset Icon (40x40px)
+  - Asset Name
+  - Current APY (updated every 30s)
+  - Total Drills Active
+  - Global Flow Rate
+  - Source Protocol
+  - Action Button
+- Sorting:
+  - Default: Highest APY first
+  - Allow sorting by all columns
+- Filtering:
+  - By asset type
+  - By protocol source
+
+### Asset Deposit Page
+
+- Form layout:
+  - Two columns: Form (left), Animation (right)
+  - Input validation:
+    - Min amount: 0.01 of asset
+    - Max amount: User's balance
+  - Loading states for:
+    - Balance checking
+    - Allowance checking
+    - Transaction processing
+- Success flow:
+  - Show drilling animation
+  - Confetti effect
+  - Auto-redirect after 3s
+
+### Drill Card Components
+
+- Display:
+  - Asset icon and name
+  - Amount deposited
+  - Current yield rate
+  - Total earned
+  - Active duration
+- Actions:
+  - Shutdown button (red)
+  - Quick view button
+- State indicators:
+  - Active: Green dot
+  - Processing: Yellow pulse
+  - Error: Red outline
+
+### Error Handling
+
+- Wallet connection errors:
+  - Wrong network prompt
+  - Insufficient balance warning
+  - Transaction rejection handling
+- Contract interaction errors:
+  - Clear error messages
+  - Retry options
+  - Support links
+
+## Core Features
 
 ### 1. Landing Page
 
-- **Location**: `src/app/page.tsx`
-- **Components**: `LandingCard.tsx`
-- **Implementation Details**:
-  - Create a responsive layout with two cards side by side on desktop and stacked on mobile
-  - Each card should have a distinct visual style to differentiate target audiences
-  - Community Owner card should highlight pool creation and management features
-  - Community Member card should emphasize rewards and unit collection benefits
-  - Use compelling imagery and concise copy to communicate value proposition
-  - Implement animated CTAs that direct users to the appropriate sections
+- This landing page should be available in the `/` page.
+- The heading should be centered, with the text: "Frack My ____". The underlined portion should slowly switch between different assets: [ETH, WSTETH, RETH, BTC] 
+- The main content should be a carousel of cards:
+  - The horizontal carousel always has an "Add Drill" card with a "+" icon to indicate a new drill can be created.
+  - Initially, no drills cards are shown. Later, after the user creates them, they will populate the carousel.
+- Below the carousel, there is a pool of purple oil collecting:
+  - It takes up the bottom of the screen.
+  - It is animated to slowly move around like gentle sloshing motion
+  - It displays the user's current balance of USDC "Earned so far"
+  - It displays secondary text with the user's flow rate in USDC per month.
 
-### 2. For Community Owner
+### 2. Create a new Drill
 
-#### 2.1 Create a Pool
+#### 2.1 List of fracking fluid
 
-- **Location**: `src/app/pools/page.tsx`, `src/components/PoolForm.tsx`, `src/hooks/useCreatePool.ts`
-- **Implementation Details**:
-  - `PoolForm.tsx` should have form validation for all inputs
-  - Implement wallet connection status checking before form submission
-  - Display transaction status (pending, success, error) with appropriate user feedback
-  - Show estimated gas fees before confirmation
-  - Implement the form using shadcn/ui components for consistent styling
-  - The form should include tooltips explaining technical parameters
+- The `/fluids` page should display a list of fluids available to build a drill.
+- The user is be prompted to create a new Drill, and must choose a specific deposit asset, called the "fracking fluid"
+- Each row displays properties such as the asset (fluid) name, the yield rate, the global drills, the global flow rate, and the source of oil (web3 protocol).
+- The available fracking fluids are displayed using a list in `packages/app/src/config/assets.ts`.
 
-#### 2.2 Fund a Pool
+#### 2.2 Deposit assets
 
-- **Location**: `src/app/pools/page.tsx`, `src/components/PoolFunding.tsx`, `src/hooks/useFundPool.ts`
-- **Implementation Details**:
-  - Create a unified interface for both funding methods with a tab/toggle to switch between one-off (airdrop) and streaming payments
-  - For token approval:
-    - Display current allowance prominently
-    - Implement a "one-click approve" flow that handles both approval and deposit in sequence
-    - Show approval status with a progress indicator
-  - For funding:
-    - Display a confirmation modal with transaction details
-    - Show real-time token balance and funding amount
-    - Include a transaction summary before confirmation
-  - Implement error handling for rejected transactions, insufficient funds, etc.
+- This feature should be available in the `/fluids/<asset-type>` page. Where `<asset-type>` is the asset the user selected from the previous page.
+- The page should have a form that allows the user to build a new drill, with the specified fluid, by calling the function `deposit` in the `Fracking` contract.
+- The asset type will be pre-selected as the current "fluid".
+- You shall refer to `packages/app/src/config/contracts.ts` for the function signature.
+- When creating a new drill, an ERC20 token approval is required - this will be performed prior to calling the `deposit`function.
+- Current ERC20 token allowance will be displayed in the UI and prompt the user to approve the token if the amount is not enough.
+- You shall refer to `packages/app/src/config/contracts.ts` for the function signature.
+- a fun gif will be displayed next to the form that shows a oil drill
+- When a new drill is created, an animation is played an the user is returned to the landing page which shows their new drill
 
-### 3. Community Member Features
+### 3 Withdraw
 
-#### 3.1 List of Pools
-
-- **Location**: `src/app/rewards/page.tsx`, `src/components/PoolList.tsx`, `src/components/PoolCard.tsx`
-- **Implementation Details**:
-  - `PoolList.tsx` should fetch all available pools using `usePoolData.ts` hook
-  - Implement sorting options (by reward rate, token type, user units)
-  - Add search/filter functionality to find specific pools
-  - Implement pagination or infinite scroll for large numbers of pools
-  - Each pool card should display:
-    - Pool name and description
-    - Current reward token with icon
-    - Flow rate displayed in tokens/day format
-    - User's current units owned with percentage of total pool
-    - Visual indicator of pool activity (active, paused, etc.)
-
-#### 3.2 Subscribe to a Pool
-
-- **Location**: `src/components/PoolCard.tsx`, `src/hooks/useManageUnits.ts`
-- **Implementation Details**:
-  - Each card should have two clearly labeled buttons:
-    - "Collect Units" - for increasing units
-    - "Decrease Units" - for reducing units
-  - Implement a modal for each action that:
-    - Shows current units owned
-    - Allows user to input desired units to collect/decrease
-    - Displays estimated impact on rewards
-    - Shows transaction details before confirmation
-  - Provide real-time feedback during transaction processing
-  - Update UI immediately after successful transactions
-  - Handle errors gracefully with user-friendly messages
-
-## Data Models
-
-### Pool Data Structure
-
-```typescript
-interface Pool {
-  id: string;              // Pool unique identifier
-  owner: string;           // Creator's address
-  rewardToken: string;     // Token address
-  rewardTokenSymbol: string; // Token symbol
-  rewardTokenDecimals: number; // Token decimals
-  totalUnits: bigint;      // Total units in pool
-  flowRate: bigint;        // Current flow rate
-  lastUpdated: number;     // Timestamp of last update
-  isActive: boolean;       // Whether the pool is active
-}
-
-interface UserPoolData {
-  poolId: string;          // Pool identifier
-  userUnits: bigint;       // User's units in pool
-  userShare: number;       // Percentage of total pool
-  claimableRewards: bigint; // Unclaimed rewards
-}
-```
-
-## Technical Requirements
-
-### Web3 Integration
-
-- Leverage the existing Web3 context provider in `context/index.tsx`
-- Use Wagmi hooks for all contract interactions
-- Implement proper error handling for all blockchain interactions
-- Support multiple networks (mainnet, testnet)
-- Cache contract data where appropriate to minimize RPC calls
-
-### UI/UX Requirements
-
-- Mobile-responsive design for all pages
-- Loading states for all async operations
-- Clear error messages for failed transactions
-- Consistent styling using shadcn/ui components
-- Dark/light mode support
-- Accessibility compliance (WCAG standards)
-
-### Performance Considerations
-
-- Optimize rendering with React.memo where appropriate
-- Implement data caching for blockchain calls
-- Use React Query for data fetching (already integrated in the Web3 provider)
-- Lazy load components for better initial load time
-
-## Testing Requirements
-
-- Unit tests for all hooks
-- Component tests for form validation
-- Integration tests for end-to-end user flows
-- Test on multiple browsers and devices
-
-## Deployment and Configuration
-
-- Support for multiple environments (dev, staging, production)
-- Environment-specific contract addresses
-- Feature flags for gradual rollout
+- On each active drill card, there is a "Shutdown" button, which allows the user to call `withdraw` for that asset type.
+- You shall refer to `packages/app/src/config/contracts.ts` for the function signature.
 
 ## File Structure
 
 The project is structured as a monorepo with the following packages:
 
 ```
-poc-demo
+frack.my
 └── packages
     ├── contracts
-    └── webapp
+    └── app
 ```
 
 - `contracts`: The smart contracts that power the platform.
-- `webapp`: The web application that allows users to subscribe to protocols and earn incentives.
+- `app`: The web application that allows users to subscribe to protocols and earn incentives.
 
-### contracts structure:
+### webapp structure :
 
-You may have to refer to the contracts in the `contracts` package but you will not be modifying them.
-The contracts file structure is as follows:
+This is the webapp file structure that you will be working on :
 
-```
-contracts
-├── README.md
-├── cache
-│   └── solidity-files-cache.json
-├── foundry.toml
-├── lib
-│   ├── forge-std
-│   ├── openzeppelin-contracts-v4
-│   ├── openzeppelin-contracts-v5
-│   └── superfluid-protocol
-├── remappings.txt
-├── script
-│   └── Deploy.s.sol
-├── src
-│   └── DemoGDA.sol
-└── test
-```
-
-### webapp structure:
-
-This is the webapp file structure that you will be working on:
-
-```
-webapp
-├── README.md
-├── components.json
-├── next.config.js
+```filetree
+frack-my/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx              # Landing page with carousel and oil pool
+│   │   ├── fluids/
+│   │   │   ├── page.tsx          # List of available fracking fluids
+│   │   │   └── [asset]/
+│   │   │       └── page.tsx      # Deposit form for specific asset
+│   │   └── layout.tsx            # Root layout with navigation and theme
+│   ├── components/
+│   │   ├── carousel/
+│   │   │   ├── drill-card.tsx    # Card showing active drill info
+│   │   │   └── new-drill-card.tsx # "+" card to create new drill
+│   │   ├── fluid-list.tsx        # Table of available fracking fluids
+│   │   ├── oil-pool.tsx          # Animated oil pool showing earnings
+│   │   ├── theme-toggle.tsx      # Dark/light mode switch
+│   │   └── ui/                   # Shared UI components
+│   │       └── index.tsx
+│   ├── config/
+│   │   ├── assets.ts             # List of supported assets
+│   │   └── contracts.ts          # Contract addresses and ABIs
+│   ├── context/
+│   │   └── theme-provider.tsx    # Theme context wrapper
+│   └── hooks/
+│       ├── use-drills.ts         # Hook for drill operations
+│       └── use-web3.ts           # Web3 connection hooks
 ├── package.json
-├── postcss.config.js
-├── src
-│   ├── app
-│   │   ├── page.tsx               # Landing page (/)
-│   │   ├── pools/
-│   │   │   └── page.tsx           # Community Owner page (/pools)
-│   │   ├── rewards/
-│   │   │   └── page.tsx           # Community Member page (/rewards)
-│   │   └── layout.tsx             # Root layout with providers
-│   ├── components
-│   │   ├── LandingCard.tsx        # Cards for landing page
-│   │   ├── PoolForm.tsx           # Form to create a pool
-│   │   ├── PoolFunding.tsx        # Component for funding pools
-│   │   ├── PoolList.tsx           # List of pools (used in rewards page)
-│   │   ├── PoolCard.tsx           # Individual pool card with subscribe buttons
-│   │   └── ui/                    # shadcn UI components
-│   ├── hooks
-│   │   ├── usePoolData.ts         # Hook to fetch pool data 
-│   │   ├── useCreatePool.ts       # Hook for pool creation
-│   │   ├── useFundPool.ts         # Hook for funding pools
-│   │   └── useManageUnits.ts      # Hook for collecting/decreasing units
-│   ├── context
-│   │   └── index.tsx              # Existing Web3 context provider
-│   ├── config
-│   │   ├── contracts.ts           # Existing file with contract info
-│   │   └── index.ts               # Web3 configuration 
-│   └── lib
 ├── tailwind.config.js
-└── tsconfig.json
+├── tsconfig.json
+└── README.md
 ```
 
-The file `webapp/src/config/contracts.ts` contains the deployed contract addresses and ABIs that the app will interact with. You will not be modifying this file, unless you are adding new contracts needed for the webapp.
+## Key Files and Their Purposes
 
-When you interact with `DemoGDA` contract, you will be referencing the `DEMO_GDA_ABI` and `DEMO_GDA_ADDRESS` variables located in the `webapp/src/config/contracts.ts` file.
+1. **Landing Page (`app/page.tsx`)**
+   - Animated heading with rotating asset names
+   - Carousel of drill cards
+   - Animated oil pool showing earnings
+
+2. **Fluid Pages**
+   - List view (`app/fluids/page.tsx`)
+   - Individual asset deposit page (`app/fluids/[asset]/page.tsx`)
+
+3. **Components**
+   - Reusable UI components organized by feature
+   - Shared components in `components/ui`
+
+4. **Configuration**
+   - Asset configurations in `config/assets.ts`
+   - Contract interactions in `config/contracts.ts`
+
+5. **Hooks**
+   - Custom hooks for Web3 functionality
+   - Drill management operations
+
+The file `webapp/src/config/contracts.ts` contains the deployed contract addresses and ABIs that the app will interact with.
+You will not be modifying this file, unless you are adding new contracts needed for the webapp.
+
+When you interact with `Facking` contract, you will be referencing the `FRACKING_ABI` and `FRACKING_ADDRESS` variables located in the `webapp/src/config/contracts.ts` file.
 
 ## Tech Stack
 
-This is the tech stack you will be using:
+This is the tech stack you will be using :
 
 - React
 - TailwindCSS
@@ -277,3 +243,13 @@ This is the tech stack you will be using:
 - Viem
 - RainbowKit
 - Shadcn/UI
+- barba.js
+
+## UI features
+
+- Page transitions should be performed using `barba.js`
+- The user should be able to change from dark/light themes
+- The overall look and feel of the app is a gamified DeFi app.
+- It should feel like the game cookie-clicker, where I try to maximize my output, by building more Drills.
+- The dark theme involves oil, drilling, fracking fluids, and oil storage pools.
+- The light theme we will not implement yet. It will involve sunshine, flowers and windmills.
