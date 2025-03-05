@@ -129,8 +129,9 @@ The team has already built the smart contracts, and you will be building the web
 
 - The `/fluids` page should display a list of fluids available to build a drill.
 - The user is be prompted to create a new Drill, and must choose a specific deposit asset, called the "fracking fluid"
-- Each row displays properties such as the asset (fluid) name, the yield rate, the global drills, the global flow rate, and the source of oil (web3 protocol).
-- The available fracking fluids are displayed using a list in `packages/app/src/config/assets.ts`.
+- Each row displays properties such as the asset (fluid) name, the yield rate, the global drills, the global flow rate, and the strategy type.
+- The available fracking fluids are displayed using a list in `packages/app/src/config/assets.ts`. Eventually this will be read from the contracts, but for now it can be hardcoded data.
+- A filter is shown to filter by asset type. Sorting is available by ascending/descending for the numeric properties
 
 #### 2.2 Deposit assets
 

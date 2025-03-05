@@ -1,10 +1,11 @@
-import "./globals.css";
+import { spaceGrotesk } from "@/styles/fonts";
+import { ThemeProvider } from "@/context/theme-provider";
+import "@/styles/globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import ContextProvider from "@/context";
 import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "WEB3 DAPP TEMPALTE",
@@ -20,8 +21,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
-        <ThemeProvider defaultTheme="system">
+      <body className={spaceGrotesk.variable}>
+        <ThemeProvider>
           <ContextProvider cookies={cookies}>
             <Navbar />
             <main>{children}</main>
