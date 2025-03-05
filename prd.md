@@ -4,8 +4,8 @@
 
 You are building a web3 platform that allows:
 
-- Community Owner to create Superfluid Pools and distribute rewards to their community.
-- Community Member to collect units from a Superfluid Pool and claim rewards.
+- Depositing assets and earning yield
+- Automatically streaming the yield back to your wallet as USDC using Superfluid
 
 The team has already built the smart contracts, and you will be building the webapp using NextJS, shadcn, tailwindcss. For Web3 interactions, you will be using wagmi, viem, and reown web3 libraries.
 

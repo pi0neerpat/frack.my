@@ -1,3 +1,8 @@
+AI generated frontends
+
+# Step 0.
+
+Create a config file with the contract addresses, and ABI that will be used.
 
 # Step 1. 
 
@@ -11,8 +16,6 @@ Help me add details to the original PRD that give clear alignments to developers
 
 - don't create actual code, just the PRD
 - add the generated file structure to the doc
-
-
 
 # Step 3. Read and refine based on the existing code
 
