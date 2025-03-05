@@ -20,13 +20,13 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800">
+      <body>
         <ThemeProvider defaultTheme="system">
           <ContextProvider cookies={cookies}>
             <Navbar />
             <main>{children}</main>
+            <Toaster />
           </ContextProvider>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>

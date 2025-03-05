@@ -1,36 +1,39 @@
 "use client";
 
-import { wagmiAdapter, projectId, networks } from "@/config";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import React, { type ReactNode } from "react";
-import { cookieToInitialState, WagmiProvider, type Config } from "wagmi";
+import { type ReactNode } from "react";
+import { WagmiProvider, type Config, cookieToInitialState } from "wagmi";
 import { hashFn } from "wagmi/query";
 import { createAppKit } from "@reown/appkit/react";
+import { wagmiAdapter, projectId, networks } from "@/config";
+import { Web3Context } from "./web3Context";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useNetwork,
+  useSwitchNetwork,
+  useChainId,
+  useSwitchChain,
+} from "wagmi";
+import { injected } from "wagmi/connectors";
 
-// Set up queryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryKeyHashFn: hashFn,
-    },
-    mutations: {
-      onError: (error) => {
-        console.error(error);
-      },
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 3,
     },
   },
 });
 
-if (!projectId) {
-  throw new Error("Project ID is not defined");
-}
-
-// Create the modal
+// Initialize AppKit
 createAppKit({
   adapters: [wagmiAdapter],
   projectId,
   defaultNetwork: networks[0],
-  networks: [...networks],
+  networks,
   features: {
     analytics: false,
   },
@@ -38,10 +41,29 @@ createAppKit({
   themeVariables: {
     "--w3m-accent": "#004cfe",
     "--w3m-border-radius-master": "8px",
-    "--w3m-font-family":
-      "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif",
   },
 });
+
+function Web3Provider({ children }: { children: ReactNode }) {
+  const account = useAccount();
+  const chainId = useChainId();
+  const { connectAsync } = useConnect();
+  const { disconnectAsync } = useDisconnect();
+  const { switchChainAsync, error: switchError } = useSwitchChain();
+
+  const value = {
+    address: account?.address,
+    isConnected: account?.isConnected ?? false,
+    isConnecting: account?.isConnecting ?? false,
+    chainId,
+    connect: () => connectAsync({ connector: injected() }),
+    disconnect: () => disconnectAsync(),
+    switchChain: (chainId: number) => switchChainAsync({ chainId }),
+    error: switchError,
+  };
+
+  return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
+}
 
 export default function ContextProvider({
   children,
@@ -61,7 +83,11 @@ export default function ContextProvider({
       initialState={initialState}
       reconnectOnMount={true}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <Web3Provider>{children}</Web3Provider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }
+
+export { useWeb3 } from "./web3Context";

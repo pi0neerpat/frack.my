@@ -2,21 +2,13 @@
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function HomePage() {
+export default function Home() {
   return (
-    <div className="min-h-screen">
-      <main className="container mx-auto py-0 px-4 sm:px-6 lg:px-8">
-        <Card className="mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-4xl font-bold text-accent">
-              Root Page - Title
-            </CardTitle>
-            <p className="mt-2 text-muted-foreground">
-              Root Page - Description
-            </p>
-          </CardHeader>
-        </Card>
-      </main>
+    <div className="container mx-auto py-10">
+      <h1 className="text-4xl font-bold mb-8">Welcome to Superfluid Platform</h1>
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* LandingCard components will be added here */}
+      </div>
     </div>
   );
 }
