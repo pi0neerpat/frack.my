@@ -1,4 +1,5 @@
-export const FRACKING_ADDRESS = "0x..." as const;
+export const FRACKING_ADDRESS =
+  "0x0000000000000000000000000000000000000001" as const;
 
 export const FRACKING_ABI = [
   {
@@ -201,6 +202,16 @@ export const ERC20_ABI = [
   {
     inputs: [{ name: "account", type: "address" }],
     name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    name: "allowance",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",

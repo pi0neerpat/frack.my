@@ -16,19 +16,19 @@ export interface Fluid {
 
 const TESTNET_FLUIDS: Fluid[] = [
   {
-    id: "usdc",
-    name: "USC",
-    symbol: "USDC",
+    id: "utkn",
+    name: "UTK",
+    symbol: "UTK",
     protocol: "Test Protocol",
     strategy: "Test Strategy",
-    yieldRate: 0,
+    yieldRate: 3,
     globalStats: {
-      drillCount: 0,
-      flowRate: 0,
-      tvl: 0,
+      drillCount: 2,
+      flowRate: 200,
+      tvl: 10000,
     },
-    vaultAddress: "0x91A1EeE63f300B8f41AE6AF67eDEa2e2ed8c3f79",
-    underlyingAssetAddress: "0x3C2BafebbB0c8c58f39A976e725cD20D611d01e9",
+    vaultAddress: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    underlyingAssetAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   },
 ];
 
@@ -45,8 +45,8 @@ const MAINNET_FLUIDS: Fluid[] = [
       flowRate: 1234.56,
       tvl: 2456789.12,
     },
-    vaultAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-    underlyingAssetAddress: "0x0000000000000000000000000000000000000002", // Placeholder
+    vaultAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
+    underlyingAssetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
   },
   {
     id: "wsteth",
@@ -60,8 +60,8 @@ const MAINNET_FLUIDS: Fluid[] = [
       flowRate: 876.43,
       tvl: 1345678.9,
     },
-    vaultAddress: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
-    underlyingAssetAddress: "0x0000000000000000000000000000000000000003", // Placeholder
+    vaultAddress: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
+    underlyingAssetAddress: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
   },
   {
     id: "reth",
@@ -75,8 +75,8 @@ const MAINNET_FLUIDS: Fluid[] = [
       flowRate: 654.32,
       tvl: 987654.32,
     },
-    vaultAddress: "0xae78736Cd615f374D3085123A210448E74Fc6393",
-    underlyingAssetAddress: "0x0000000000000000000000000000000000000004", // Placeholder
+    vaultAddress: "0xae78736Cd615f374D3085123A210448E74Fc6393", // rETH
+    underlyingAssetAddress: "0xae78736Cd615f374D3085123A210448E74Fc6393", // rETH
   },
   {
     id: "wbtc",
@@ -90,8 +90,8 @@ const MAINNET_FLUIDS: Fluid[] = [
       flowRate: 432.1,
       tvl: 876543.21,
     },
-    vaultAddress: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-    underlyingAssetAddress: "0x0000000000000000000000000000000000000005", // Placeholder
+    vaultAddress: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // WBTC
+    underlyingAssetAddress: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // WBTC
   },
 ];
 

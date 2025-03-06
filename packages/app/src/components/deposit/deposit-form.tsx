@@ -7,6 +7,7 @@ import {
   useBalance,
   useReadContract,
   useWriteContract,
+  useWaitForTransactionReceipt,
 } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,29 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { FRACKING_ABI, FRACKING_ADDRESS, ERC20_ABI } from "@/config/contracts";
 import { FLUIDS } from "@/config/fluids";
-import { SuccessAnimation } from "./success-animation";
 import { formatCurrency } from "@/lib/utils";
+
+// Success animation component
+const SuccessAnimation = ({ onComplete }: { onComplete: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
+      <div className="text-center">
+        <div className="w-24 h-24 bg-purple-600 rounded-full mx-auto mb-4 animate-pulse flex items-center justify-center">
+          <span className="text-4xl">🎉</span>
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Drill Successfully Built!</h2>
+        <p className="text-muted-foreground">Redirecting to your drills...</p>
+      </div>
+    </div>
+  );
+};
 
 interface DepositFormProps {
   assetType: string;
@@ -37,20 +59,26 @@ export function DepositForm({ assetType }: DepositFormProps) {
   const { address, isConnected } = useAccount();
   const [amount, setAmount] = useState("");
   const [sliderValue, setSliderValue] = useState(0);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isDepositing, setIsDepositing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [justApproved, setJustApproved] = useState(false);
 
   // Get asset information
   const asset = FLUIDS.find(
     (fluid) => fluid.id.toLowerCase() === assetType.toLowerCase()
   );
 
+  // For testing purposes, if the vault address and underlying asset address are the same,
+  // we'll use a different address for the vault to simulate the approval flow
+  const vaultAddressToUse =
+    asset?.underlyingAssetAddress === asset?.vaultAddress
+      ? "0x1111111111111111111111111111111111111111" // Dummy address for testing
+      : asset?.vaultAddress;
+
   // Get user balance
   const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
     address,
-    token: asset?.contractAddress,
+    token: asset?.underlyingAssetAddress,
   });
 
   // Calculate min and max values
@@ -58,6 +86,82 @@ export function DepositForm({ assetType }: DepositFormProps) {
   const maxAmount = balanceData
     ? parseFloat(formatUnits(balanceData.value, balanceData.decimals))
     : 0;
+
+  // Calculate parsed amount early so it can be used in hooks
+  const parsedAmount = amount
+    ? parseUnits(amount, balanceData?.decimals || 18)
+    : BigInt(0);
+
+  // Log asset and address information for debugging
+  useEffect(() => {
+    if (asset && address) {
+      console.log("Allowance check parameters:", {
+        tokenAddress: asset.underlyingAssetAddress,
+        owner: address,
+        spender: vaultAddressToUse,
+        tokenAbi: ERC20_ABI,
+        enabled:
+          !!address && !!asset.underlyingAssetAddress && !!vaultAddressToUse,
+      });
+    }
+  }, [asset, address, vaultAddressToUse]);
+
+  // Get current allowance - explicitly check all parameters are defined
+  const {
+    data: allowance,
+    refetch: refetchAllowance,
+    isLoading: isLoadingAllowance,
+    error: allowanceError,
+    status: allowanceStatus,
+  } = useReadContract({
+    address: asset?.underlyingAssetAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args:
+      address && asset?.underlyingAssetAddress && vaultAddressToUse
+        ? [address, vaultAddressToUse]
+        : undefined,
+  });
+
+  // Log allowance results for debugging
+  useEffect(() => {
+    console.log("Allowance result:", {
+      allowance: allowance ? allowance.toString() : "undefined",
+      error: allowanceError,
+      status: allowanceStatus,
+      args:
+        address && asset?.underlyingAssetAddress && vaultAddressToUse
+          ? [address, vaultAddressToUse]
+          : "undefined args",
+      underlyingAssetAddress: asset?.underlyingAssetAddress,
+      vaultAddressToUse,
+    });
+
+    // If allowance is undefined, try to debug why
+    if (
+      allowance === undefined &&
+      address &&
+      asset?.underlyingAssetAddress &&
+      vaultAddressToUse
+    ) {
+      console.log("Debugging allowance issue:", {
+        tokenContract: asset.underlyingAssetAddress,
+        isValidTokenAddress:
+          asset.underlyingAssetAddress.startsWith("0x") &&
+          asset.underlyingAssetAddress.length === 42,
+        isValidSpender:
+          vaultAddressToUse.startsWith("0x") && vaultAddressToUse.length === 42,
+        isValidOwner: address.startsWith("0x") && address.length === 42,
+      });
+    }
+  }, [
+    allowance,
+    allowanceError,
+    allowanceStatus,
+    address,
+    asset?.underlyingAssetAddress,
+    vaultAddressToUse,
+  ]);
 
   // Update amount when slider changes
   const handleSliderChange = (value: number[]) => {
@@ -94,82 +198,177 @@ export function DepositForm({ assetType }: DepositFormProps) {
     }
   };
 
-  // Get current allowance - using custom hook or direct contract call would be better
-  // This is a simplified version for the demo
-  const [allowance, setAllowance] = useState("0");
-  const [isLoadingAllowance, setIsLoadingAllowance] = useState(false);
+  // Check if approval is needed - with fallback for undefined allowance
+  const hasEnoughAllowance = allowance ? parsedAmount <= allowance : false;
 
-  // Simulate allowance check
-  useEffect(() => {
-    if (!address || !asset?.contractAddress || !isConnected) return;
-
-    setIsLoadingAllowance(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setAllowance("0"); // Start with 0 allowance
-      setIsLoadingAllowance(false);
-    }, 1000);
-  }, [address, asset?.contractAddress, isConnected]);
-
-  const hasEnoughAllowance = Number(allowance) >= Number(amount || "0");
-
-  // Refetch allowance function
-  const refetchAllowance = async () => {
-    setIsLoadingAllowance(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setAllowance(amount); // After approval, set allowance to amount
-      setIsLoadingAllowance(false);
-    }, 1000);
-  };
+  // Force approval button if allowance is undefined or 0
+  const shouldShowApproveButton = !allowance || allowance === BigInt(0);
 
   // Contract write hooks
-  const { writeContractAsync: approveToken } = useWriteContract();
-  const { writeContractAsync: deposit } = useWriteContract();
+  const {
+    writeContract: writeApprove,
+    data: approveHash,
+    isPending: isApproving,
+    isError: isApproveError,
+    error: approveError,
+  } = useWriteContract();
+
+  const {
+    writeContract: writeDeposit,
+    data: depositHash,
+    isPending: isDepositing,
+    isError: isDepositError,
+    error: depositError,
+  } = useWriteContract();
+
+  // Log errors
+  useEffect(() => {
+    if (isApproveError && approveError) {
+      console.error("Approval error:", approveError);
+      setError(`Failed to approve token: ${approveError.message}`);
+    }
+  }, [isApproveError, approveError]);
+
+  useEffect(() => {
+    if (isDepositError && depositError) {
+      console.error("Deposit error:", depositError);
+      setError(`Failed to create drill: ${depositError.message}`);
+    }
+  }, [isDepositError, depositError]);
+
+  // Transaction receipts
+  const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } =
+    useWaitForTransactionReceipt({
+      hash: approveHash,
+    });
+
+  // Effect to refetch allowance after approval transaction is confirmed
+  useEffect(() => {
+    if (isApproveSuccess) {
+      console.log("Approval transaction successful, refetching allowance");
+      refetchAllowance();
+    }
+  }, [isApproveSuccess, refetchAllowance]);
+
+  const { isLoading: isDepositLoading, isSuccess: isDepositSuccess } =
+    useWaitForTransactionReceipt({
+      hash: depositHash,
+    });
+
+  // Effect to show success and redirect after deposit transaction is confirmed
+  useEffect(() => {
+    if (isDepositSuccess) {
+      console.log("Deposit transaction successful");
+      setShowSuccess(true);
+      const timer = setTimeout(() => {
+        router.push("/");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isDepositSuccess, router]);
+
+  // Periodically refresh allowance
+  useEffect(() => {
+    if (address && asset?.underlyingAssetAddress && vaultAddressToUse) {
+      // Initial fetch
+      refetchAllowance();
+
+      // Set up interval to refresh every 5 seconds
+      const intervalId = setInterval(() => {
+        console.log("Auto-refreshing allowance");
+        refetchAllowance();
+      }, 5000);
+
+      return () => clearInterval(intervalId);
+    }
+  }, [
+    address,
+    asset?.underlyingAssetAddress,
+    vaultAddressToUse,
+    refetchAllowance,
+  ]);
 
   // Validation
   const isAmountValid =
     Number(amount) >= minAmount && balanceData && Number(amount) <= maxAmount;
 
+  // Debug allowance information
+  useEffect(() => {
+    console.log("Allowance information:", {
+      allowance: allowance ? allowance.toString() : "undefined",
+      parsedAmount: parsedAmount.toString(),
+      hasEnoughAllowance,
+      decimals: balanceData?.decimals,
+      vaultAddressToUse,
+    });
+  }, [
+    allowance,
+    parsedAmount,
+    hasEnoughAllowance,
+    balanceData?.decimals,
+    vaultAddressToUse,
+  ]);
+
+  // Handle manual refresh of allowance
+  const handleRefreshAllowance = () => {
+    console.log("Manually refreshing allowance");
+    refetchAllowance();
+  };
+
   // Handle approve
   const handleApprove = async () => {
-    if (!address || !asset?.contractAddress) return;
+    if (
+      !address ||
+      !asset?.underlyingAssetAddress ||
+      !vaultAddressToUse ||
+      !isAmountValid
+    ) {
+      console.error("Cannot approve: missing required parameters");
+      return;
+    }
 
-    setIsApproving(true);
     setError("");
 
     try {
-      // Simulate approval
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Approving token:", {
+        tokenAddress: asset.underlyingAssetAddress,
+        spender: vaultAddressToUse,
+        amount: parsedAmount.toString(),
+      });
 
-      await refetchAllowance();
+      writeApprove({
+        address: asset.underlyingAssetAddress,
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [vaultAddressToUse, parsedAmount],
+      });
     } catch (error) {
       console.error("Approval error:", error);
       setError("Failed to approve token. Please try again.");
-    } finally {
-      setIsApproving(false);
     }
   };
 
   // Handle deposit
   const handleDeposit = async () => {
-    if (!address || !asset?.contractAddress || !isAmountValid) return;
+    if (!address || !vaultAddressToUse || !isAmountValid) return;
 
-    setIsDepositing(true);
     setError("");
 
     try {
-      // Simulate deposit
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Depositing:", {
+        vaultAddress: vaultAddressToUse,
+        amount: parsedAmount.toString(),
+      });
 
-      setShowSuccess(true);
+      writeDeposit({
+        address: vaultAddressToUse,
+        abi: FRACKING_ABI,
+        functionName: "deposit",
+        args: [parsedAmount],
+      });
     } catch (error) {
       console.error("Deposit error:", error);
       setError("Failed to create drill. Please try again.");
-    } finally {
-      setIsDepositing(false);
     }
   };
 
@@ -212,6 +411,10 @@ export function DepositForm({ assetType }: DepositFormProps) {
     );
   }
 
+  // Combined loading state
+  const isLoading =
+    isApproveLoading || isDepositLoading || isApproving || isDepositing;
+
   return (
     <>
       {showSuccess && <SuccessAnimation onComplete={handleSuccessComplete} />}
@@ -239,12 +442,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
                   min={minAmount}
                   max={maxAmount}
                   step="0.01"
-                  disabled={
-                    isApproving ||
-                    isDepositing ||
-                    isLoadingBalance ||
-                    isLoadingAllowance
-                  }
+                  disabled={isLoading || isLoadingBalance || isLoadingAllowance}
                   className="flex-1"
                 />
                 <span className="text-sm font-medium">{asset.symbol}</span>
@@ -275,8 +473,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
                     max={100}
                     step={1}
                     disabled={
-                      isApproving ||
-                      isDepositing ||
+                      isLoading ||
                       isLoadingBalance ||
                       isLoadingAllowance ||
                       maxAmount <= 0
@@ -319,6 +516,51 @@ export function DepositForm({ assetType }: DepositFormProps) {
               </div>
             </div>
 
+            {/* Allowance information */}
+            {!isLoadingAllowance && (
+              <div className="text-sm text-muted-foreground flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span>
+                    Current Allowance:{" "}
+                    {allowance !== undefined
+                      ? formatUnits(allowance, balanceData?.decimals || 18)
+                      : "0"}{" "}
+                    {asset.symbol}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefreshAllowance}
+                    disabled={isLoadingAllowance}
+                    className="h-6 px-2"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={isLoadingAllowance ? "animate-spin" : ""}
+                    >
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                      <path d="M3 3v5h5"></path>
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                      <path d="M16 21h5v-5"></path>
+                    </svg>
+                  </Button>
+                </div>
+                {allowanceError && (
+                  <div className="text-red-500 mt-1 text-xs">
+                    Error: {allowanceError.message}
+                  </div>
+                )}
+              </div>
+            )}
+
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -332,13 +574,13 @@ export function DepositForm({ assetType }: DepositFormProps) {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Checking allowance...
             </Button>
-          ) : !hasEnoughAllowance ? (
+          ) : shouldShowApproveButton ? (
             <Button
               onClick={handleApprove}
-              disabled={!isAmountValid || isApproving}
-              className="w-full"
+              disabled={!isAmountValid || isApproving || isApproveLoading}
+              className="w-full bg-purple-700 hover:bg-purple-600"
             >
-              {isApproving ? (
+              {isApproving || isApproveLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Approving...
@@ -347,26 +589,35 @@ export function DepositForm({ assetType }: DepositFormProps) {
                 `Approve ${asset.symbol}`
               )}
             </Button>
-          ) : null}
+          ) : (
+            <Button
+              onClick={handleDeposit}
+              disabled={!isAmountValid || isDepositing || isDepositLoading}
+              className="w-full bg-purple-700 hover:bg-purple-600"
+            >
+              {isDepositing || isDepositLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Drill...
+                </>
+              ) : (
+                "Create Drill"
+              )}
+            </Button>
+          )}
 
           <Button
-            onClick={handleDeposit}
-            disabled={
-              !isAmountValid ||
-              !hasEnoughAllowance ||
-              isDepositing ||
-              isLoadingAllowance
-            }
+            variant="outline"
             className="w-full"
+            onClick={() => router.back()}
+            disabled={
+              isApproving ||
+              isApproveLoading ||
+              isDepositing ||
+              isDepositLoading
+            }
           >
-            {isDepositing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Drill...
-              </>
-            ) : (
-              "Create Drill"
-            )}
+            Cancel
           </Button>
         </CardFooter>
       </Card>

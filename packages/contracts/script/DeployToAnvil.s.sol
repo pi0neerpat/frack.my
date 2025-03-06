@@ -38,11 +38,7 @@ contract DeployToAnvil is Script {
         YieldBox yieldBox = new YieldBox(address(strategy), address(superToken));
         console.log("YieldBox deployed at:", address(yieldBox));
 
-        // 6. Approve YieldBox to spend tokens
-        underlyingToken.approve(address(yieldBox), mintAmount / 2);
-        console.log("Approved YieldBox to spend tokens");
-
-        // 7. Transfer some tokens to the deployer wallet (already done in step 2)
+        // 6. Transfer some tokens to the deployer wallet (already done in step 2)
         console.log("Deployer balance:", underlyingToken.balanceOf(deployer));
 
         vm.stopBroadcast();

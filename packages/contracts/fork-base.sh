@@ -7,5 +7,7 @@ BASE_RPC_URL="https://base-mainnet.rpc.x.superfluid.dev"
 echo "Starting Anvil with Base network fork..."
 anvil --fork-url $BASE_RPC_URL \
       --chain-id 84531 \
-      --block-time 12 \
+      --block-time 1 \
       --port 8545 \
+
+anvil  --chain-id 84531 
