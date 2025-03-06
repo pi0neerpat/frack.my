@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 
 interface OdometerOptions {
   startValue: number;
@@ -15,10 +15,10 @@ export function useOdometer({ startValue, rate }: OdometerOptions) {
       const now = Date.now();
       const elapsed = now - lastUpdateTime.current;
       const increment = (rate / 1000) * elapsed; // Convert rate per second to rate per millisecond
-      
-      setDisplayValue(prev => prev + increment);
+
+      setDisplayValue((prev) => prev + increment);
       lastUpdateTime.current = now;
-      
+
       frameRef.current = requestAnimationFrame(updateValue);
     }
 

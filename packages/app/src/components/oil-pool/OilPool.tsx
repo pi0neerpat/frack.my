@@ -10,7 +10,7 @@ export function OilPool() {
 
   const displayEarned = useOdometer({
     startValue: 0,
-    rate: ratePerSecond
+    rate: ratePerSecond,
   });
 
   const formatAmount = useCallback((amount: number) => {

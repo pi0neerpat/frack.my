@@ -1,30 +1,30 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageTransition } from "@/components/PageTransition";
+"use client";
+
+import { FluidList } from "@/components/fluid-list/FluidList";
+import { motion } from "framer-motion";
 
 export default function FluidsPage() {
   return (
-    <PageTransition>
-      <div className="py-10 space-y-10 max-w-[1024px] mx-auto">
-        {" "}
-        {/* Added max-width and centered */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-4xl font-bold">Available Fluids</h1>
-        </div>
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {" "}
-          {/* Increased gap */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Coming Soon</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Fluid list will be populated from smart contracts
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="container py-10 space-y-8">
+      <div>
+        <motion.h1
+          className="text-4xl font-bold mb-2"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          Available Fluids
+        </motion.h1>
+        <motion.p
+          className="text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Select a fluid to start building your drill
+        </motion.p>
       </div>
-    </PageTransition>
+
+      <FluidList />
+    </div>
   );
 }

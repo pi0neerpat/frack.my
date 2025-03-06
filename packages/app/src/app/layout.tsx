@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { spaceGrotesk } from "@/styles/fonts";
 import { headers } from "next/headers";
 import ContextProvider from "@/context";
+import { FluidsProvider } from "@/context/fluids-context";
 import type { Metadata } from "next";
 import "@/styles/globals.css";
 
@@ -24,9 +25,11 @@ export default async function RootLayout({
       <body>
         <ThemeProvider>
           <ContextProvider cookies={cookies}>
-            <Navbar />
-            <main>{children}</main>
-            <Toaster />
+            <FluidsProvider>
+              <Navbar />
+              <main>{children}</main>
+              <Toaster />
+            </FluidsProvider>
           </ContextProvider>
         </ThemeProvider>
       </body>
