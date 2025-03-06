@@ -1,6 +1,8 @@
 AI generated frontends
 
-repomi
+```
+npx repomix src --ignore app/src/assets/fonts
+```
 
 # Step 0.
 

@@ -1,4 +1,3 @@
-import { spaceGrotesk } from "@/styles/fonts";
 import { ThemeProvider } from "@/context/theme-provider";
 import "@/styles/globals.css";
 import type { Metadata } from "next";
@@ -8,8 +7,8 @@ import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "WEB3 DAPP TEMPALTE",
-  description: "A web3 dApp template for building web3 applications",
+  title: "Frack.My",
+  description: "Fracking for yield",
 };
 
 export default async function RootLayout({
@@ -21,7 +20,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={spaceGrotesk.variable}>
+      <body>
         <ThemeProvider>
           <ContextProvider cookies={cookies}>
             <Navbar />

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { WalletConnect } from "@reown/appkit";
+import { WalletConnect } from "@/components/WalletConnect";
 
 export function Navbar() {
   return (
