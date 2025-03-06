@@ -76,7 +76,7 @@ export default function Home() {
           Build your drill, collect the yield, and watch your USDC flow.
         </motion.p>
 
-        <DrillCarousel 
+        <DrillCarousel
           userDrills={userDrills}
           exampleDrills={exampleDrills}
           onShutdown={handleShutdown}

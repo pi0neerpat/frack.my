@@ -6,7 +6,7 @@ import { FLUIDS } from "@/config/fluids";
 
 export function RotatingText() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const assets = FLUIDS.map(fluid => fluid.symbol);
+  const assets = FLUIDS.map((fluid) => fluid.symbol);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -17,7 +17,9 @@ export function RotatingText() {
 
   return (
     <div className="inline-flex flex-col items-center">
-      <div className="h-[64px] w-[180px] flex items-center justify-center"> {/* Increased width */}
+      <div className="h-[64px] w-[180px] flex items-center justify-center">
+        {" "}
+        {/* Increased width */}
         <AnimatePresence mode="wait">
           <motion.span
             key={currentIndex}
@@ -27,14 +29,17 @@ export function RotatingText() {
             transition={{ duration: 0.5 }}
             className="text-purple-500 text-center text-balance" /* Added text-balance for better text handling */
             style={{
-              fontSize: assets[currentIndex].length > 4 ? '0.9em' : '1em' /* Scale text if longer than 4 chars */
+              fontSize:
+                assets[currentIndex].length > 4
+                  ? "0.9em"
+                  : "1em" /* Scale text if longer than 4 chars */,
             }}
           >
             {assets[currentIndex]}
           </motion.span>
         </AnimatePresence>
       </div>
-      <div 
+      <div
         className="h-1 w-[180px] bg-gradient-to-r from-purple-600 to-purple-400" /* Matched width */
         style={{ opacity: 0.8 }}
       />

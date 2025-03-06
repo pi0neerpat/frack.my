@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 const VALID_ASSETS = ["eth", "wsteth", "reth", "btc"] as const;
-type AssetType = typeof VALID_ASSETS[number];
+type AssetType = (typeof VALID_ASSETS)[number];
 
 const isValidAsset = (asset: string): asset is AssetType => {
   return VALID_ASSETS.includes(asset as AssetType);
@@ -53,10 +53,16 @@ export function Icon({ name, className }: IconProps) {
           )}
           {!isValidAsset(assetName) && (
             <>
-              <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="2"/>
-              <path 
-                d="M12 6C9.79086 6 8 7.79086 8 10C8 11.1 8.4 12.1 9.1 12.8L8 17H16L14.9 12.8C15.6 12.1 16 11.1 16 10C16 7.79086 14.2091 6 12 6Z" 
-                stroke="currentColor" 
+              <circle
+                cx="12"
+                cy="12"
+                r="11"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M12 6C9.79086 6 8 7.79086 8 10C8 11.1 8.4 12.1 9.1 12.8L8 17H16L14.9 12.8C15.6 12.1 16 11.1 16 10C16 7.79086 14.2091 6 12 6Z"
+                stroke="currentColor"
                 strokeWidth="2"
               />
             </>

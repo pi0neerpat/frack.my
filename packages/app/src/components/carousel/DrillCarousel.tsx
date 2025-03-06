@@ -22,7 +22,11 @@ interface DrillCarouselProps {
   onShutdown: (id: string) => void;
 }
 
-export function DrillCarousel({ userDrills, exampleDrills, onShutdown }: DrillCarouselProps) {
+export function DrillCarousel({
+  userDrills,
+  exampleDrills,
+  onShutdown,
+}: DrillCarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const calculateDuration = (startTime: number) => {
@@ -42,7 +46,7 @@ export function DrillCarousel({ userDrills, exampleDrills, onShutdown }: DrillCa
         <div className="w-[320px] flex-shrink-0">
           <NewDrillCard />
         </div>
-        
+
         {/* User's active drills */}
         {userDrills.map((drill) => (
           <div key={drill.id} className="w-[320px] flex-shrink-0">
