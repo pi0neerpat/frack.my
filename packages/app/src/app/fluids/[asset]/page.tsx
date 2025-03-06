@@ -1,31 +1,44 @@
-import { notFound } from "next/navigation";
-import { PageTransition } from "@/components/PageTransition";
+"use client";
 
-const VALID_ASSETS = ["eth", "wsteth", "reth", "btc"];
+import React, { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { DepositForm } from "@/components/deposit/deposit-form";
+import { AssetAnimation } from "@/components/deposit/asset-animation";
+import { FLUIDS } from "@/config/fluids";
 
-export default function FluidAssetPage({
-  params,
-}: {
-  params: { asset: string };
-}) {
-  if (!VALID_ASSETS.includes(params.asset)) {
-    notFound();
-  }
+export default function DepositPage() {
+  const params = useParams();
+  const router = useRouter();
+  const assetType = params.asset as string;
+
+  // Check if the asset exists in our fluids list
+  useEffect(() => {
+    if (!assetType) return;
+
+    const assetExists = FLUIDS.some(
+      (fluid) => fluid.id.toLowerCase() === assetType.toLowerCase()
+    );
+
+    if (!assetExists) {
+      console.log(`Asset ${assetType} not found in fluids list`);
+    }
+  }, [assetType]);
 
   return (
-    <PageTransition>
-      <div className="py-10 space-y-10 max-w-[768px] mx-auto">
-        {" "}
-        {/* Added max-width and centered */}
-        <h1 className="text-4xl font-bold capitalize">
-          {params.asset.toUpperCase()} Fluid
-        </h1>
-        <div className="bg-card rounded-lg p-6">
-          <p className="text-muted-foreground">
-            Deposit form will be implemented here
-          </p>
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Build a New Drill</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Left column: Form */}
+        <div className="bg-card rounded-lg p-6 shadow-md">
+          <DepositForm assetType={assetType} />
+        </div>
+
+        {/* Right column: Animation */}
+        <div className="flex items-center justify-center">
+          <AssetAnimation assetType={assetType} />
         </div>
       </div>
-    </PageTransition>
+    </div>
   );
 }

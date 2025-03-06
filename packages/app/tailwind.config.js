@@ -9,6 +9,15 @@ module.exports = {
   ],
   theme: {
     extend: {
+      animation: {
+        progress: "progress 3s ease-in-out forwards",
+      },
+      keyframes: {
+        progress: {
+          "0%": { width: "0%" },
+          "100%": { width: "100%" },
+        },
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

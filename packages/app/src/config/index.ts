@@ -12,7 +12,7 @@ if (!projectId) {
   throw new Error("Project ID is not defined");
 }
 
-export const networks = [sepolia, base, baseSepolia] as const;
+export const networks = [base, baseSepolia] as const;
 
 // Set up the Wagmi Adapter (Config)
 export const wagmiAdapter = new WagmiAdapter({
@@ -28,9 +28,8 @@ export const wagmiAdapter = new WagmiAdapter({
     },
   },
   transports: {
-    [sepolia.id]: http("https://rpc-endpoints.superfluid.dev/eth-sepolia"),
-    [base.id]: http("https://rpc-endpoints.superfluid.dev/base-mainnet"),
-    [baseSepolia.id]: http("https://rpc-endpoints.superfluid.dev/base-sepolia"),
+    [base.id]: http("https://base-mainnet.rpc.x.superfluid.dev/"),
+    [baseSepolia.id]: http("http://127.0.0.1:8545"),
   },
   multiInjectedProviderDiscovery: true,
 });
