@@ -121,6 +121,6 @@ export const filterFluidsByProtocol = (
 ): Fluid[] => {
   if (!protocolName) return fluids;
   return fluids.filter(
-    (fluid) => fluid.protocol.name.toLowerCase() === protocolName.toLowerCase()
+    (fluid) => fluid.strategy.name.toLowerCase() === protocolName.toLowerCase()
   );
 };
