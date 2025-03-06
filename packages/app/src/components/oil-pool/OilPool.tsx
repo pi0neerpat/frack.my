@@ -16,7 +16,7 @@ export function OilPool() {
 
   return (
     <motion.div 
-      className="fixed bottom-0 left-0 right-0 h-[25vh]"
+      className="fixed bottom-0 left-0 right-0 h-[35vh]" // Increased height
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
@@ -24,18 +24,29 @@ export function OilPool() {
       {/* Wave overlay */}
       <motion.svg
         className="absolute inset-0 w-full h-full"
-        viewBox="0 0 1920 400"
+        viewBox="0 0 1920 600" // Increased viewBox height
         preserveAspectRatio="none"
+        style={{
+          filter: 'drop-shadow(0 -10px 20px rgba(147, 51, 234, 0.2))', // Added glow
+        }}
       >
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
         {/* Background wave */}
         <motion.path
-          d="M0 200C160 160 320 140 480 160C640 180 800 240 960 240C1120 240 1280 180 1440 160C1600 140 1760 160 1920 200V400H0V200Z"
+          d="M0 300C320 240 640 210 960 240C1280 270 1600 240 1920 300V600H0V300Z"
           fill="rgba(147, 51, 234, 0.15)"
+          filter="url(#glow)"
           animate={{
             d: [
-              "M0 200C160 160 320 140 480 160C640 180 800 240 960 240C1120 240 1280 180 1440 160C1600 140 1760 160 1920 200V400H0V200Z",
-              "M0 220C160 180 320 160 480 180C640 200 800 260 960 260C1120 260 1280 200 1440 180C1600 160 1760 180 1920 220V400H0V220Z",
-              "M0 200C160 160 320 140 480 160C640 180 800 240 960 240C1120 240 1280 180 1440 160C1600 140 1760 160 1920 200V400H0V200Z"
+              "M0 300C320 240 640 210 960 240C1280 270 1600 240 1920 300V600H0V300Z",
+              "M0 330C320 270 640 240 960 270C1280 300 1600 270 1920 330V600H0V330Z",
+              "M0 300C320 240 640 210 960 240C1280 270 1600 240 1920 300V600H0V300Z"
             ]
           }}
           transition={{
@@ -47,13 +58,14 @@ export function OilPool() {
         
         {/* Mid wave */}
         <motion.path
-          d="M0 220C160 180 320 160 480 180C640 200 800 260 960 260C1120 260 1280 200 1440 180C1600 160 1760 180 1920 220V400H0V220Z"
+          d="M0 330C320 270 640 240 960 270C1280 300 1600 270 1920 330V600H0V330Z"
           fill="rgba(147, 51, 234, 0.25)"
+          filter="url(#glow)"
           animate={{
             d: [
-              "M0 220C160 180 320 160 480 180C640 200 800 260 960 260C1120 260 1280 200 1440 180C1600 160 1760 180 1920 220V400H0V220Z",
-              "M0 200C160 160 320 140 480 160C640 180 800 240 960 240C1120 240 1280 180 1440 160C1600 140 1760 160 1920 200V400H0V200Z",
-              "M0 220C160 180 320 160 480 180C640 200 800 260 960 260C1120 260 1280 200 1440 180C1600 160 1760 180 1920 220V400H0V220Z"
+              "M0 330C320 270 640 240 960 270C1280 300 1600 270 1920 330V600H0V330Z",
+              "M0 300C320 240 640 210 960 240C1280 270 1600 240 1920 300V600H0V300Z",
+              "M0 330C320 270 640 240 960 270C1280 300 1600 270 1920 330V600H0V330Z"
             ]
           }}
           transition={{
@@ -66,13 +78,14 @@ export function OilPool() {
 
         {/* Top wave */}
         <motion.path
-          d="M0 240C160 200 320 180 480 200C640 220 800 280 960 280C1120 280 1280 220 1440 200C1600 180 1760 200 1920 240V400H0V240Z"
+          d="M0 360C320 300 640 270 960 300C1280 330 1600 300 1920 360V600H0V360Z"
           fill="rgba(147, 51, 234, 0.35)"
+          filter="url(#glow)"
           animate={{
             d: [
-              "M0 240C160 200 320 180 480 200C640 220 800 280 960 280C1120 280 1280 220 1440 200C1600 180 1760 200 1920 240V400H0V240Z",
-              "M0 220C160 180 320 160 480 180C640 200 800 260 960 260C1120 260 1280 200 1440 180C1600 160 1760 180 1920 220V400H0V220Z",
-              "M0 240C160 200 320 180 480 200C640 220 800 280 960 280C1120 280 1280 220 1440 200C1600 180 1760 200 1920 240V400H0V240Z"
+              "M0 360C320 300 640 270 960 300C1280 330 1600 300 1920 360V600H0V360Z",
+              "M0 330C320 270 640 240 960 270C1280 300 1600 270 1920 330V600H0V330Z",
+              "M0 360C320 300 640 270 960 300C1280 330 1600 300 1920 360V600H0V360Z"
             ]
           }}
           transition={{
@@ -83,9 +96,9 @@ export function OilPool() {
           }}
         />
 
-        {/* Content container */}
-        <foreignObject x="0" y="0" width="1920" height="400">
-          <div className="h-full flex flex-col items-center justify-center text-white px-4">
+        {/* Content container - adjusted y and height values */}
+        <foreignObject x="0" y="100" width="1920" height="500">
+          <div className="h-full flex flex-col items-center justify-center text-white px-4 relative z-10 translate-y-12">
             <motion.div 
               className="text-5xl font-bold mb-3"
               animate={{ scale: [1, 1.02, 1] }}
