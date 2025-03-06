@@ -79,3 +79,35 @@
       "calt" 1;
   }
 }
+
+/* Container and main styles */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Update main padding to match new navbar height */
+main {
+  padding-top: 80px; /* Increased to give more breathing room */
+  min-height: calc(100vh - 80px);
+  width: 100%;
+  @apply container;
+}
