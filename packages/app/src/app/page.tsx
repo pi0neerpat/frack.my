@@ -57,7 +57,7 @@ export default function Home() {
 
   return (
     <>
-      {/* CSS for background animation */}
+      {/* CSS for animations and gradients */}
       <style jsx global>{`
         @keyframes panBackground {
           0% {
@@ -70,56 +70,91 @@ export default function Home() {
             background-position: 0% 50%;
           }
         }
+
+        /* Gradient overlay for the transition effect */
+        .underground-fade {
+          background: linear-gradient(
+            to bottom,
+            transparent 0%,
+            transparent 65%,
+            rgba(5, 5, 9, 0.6) 80%,
+            rgba(5, 5, 9, 0.9) 90%,
+            rgba(5, 5, 9, 1) 100%
+          );
+          pointer-events: none;
+        }
+
+        /* App background gradient */
+        body {
+          background: linear-gradient(
+            to bottom,
+            #0a0a14 0%,
+            #121225 40%,
+            #141432 70%,
+            #1a1a30 90%,
+            #1e1e35 100%
+          );
+        }
       `}</style>
 
-      <div className="relative min-h-[75vh] flex flex-col items-center pt-20">
-        {/* Background Image with animation */}
-        <div
-          className="absolute inset-0 z-0 w-full h-full"
-          style={{
-            backgroundImage: `url('/images/rig-background.png')`,
-            backgroundSize: "120% auto", // Slightly larger to allow room for movement
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            opacity: 0.4,
-            filter: "brightness(0.7)",
-            animation: "panBackground 60s ease-in-out infinite", // 60 second animation cycle
-          }}
-        />
+      {/* Page content container with top padding */}
+      <div className="min-h-screen">
+        {/* Background container */}
+        <div className="relative">
+          {/* Background Image with animation */}
+          <div
+            className="absolute inset-0 h-[90vh] w-full z-0"
+            style={{
+              backgroundImage: `url('/images/rig-background.png')`,
+              backgroundSize: "120% auto",
+              backgroundPosition: "center center",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.7,
+              filter: "brightness(0.85)",
+              animation: "panBackground 60s ease-in-out infinite",
+            }}
+          />
 
-        {/* Content (with higher z-index to appear above the background) */}
-        <div className="relative z-10 flex flex-col items-center w-full">
-          <motion.h1
-            className="text-6xl font-bold text-center mb-10 relative"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            Frack My <RotatingText />
-          </motion.h1>
+          {/* Gradient overlay that creates the "going underground" effect */}
+          <div className="absolute inset-0 h-[90vh] w-full z-0 underground-fade" />
 
-          <motion.p
-            className="text-xl text-muted-foreground text-center max-w-[600px] mb-12"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            Build your drill, collect the yield, and watch your USDC flow.
-          </motion.p>
+          {/* Main content */}
+          <div className="relative z-10 pt-20 flex flex-col items-center">
+            <motion.h1
+              className="text-6xl font-bold text-center mb-10 relative"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              Frack My <RotatingText />
+            </motion.h1>
 
-          {/* Original Drill Carousel */}
-          <div className="w-full max-w-7xl mx-auto mb-8">
-            <h2 className="text-3xl font-bold mb-6">Available Fluids</h2>
-            <DrillCarousel
-              userDrills={[]}
-              exampleDrills={exampleDrills}
-              onShutdown={handleShutdown}
-            />
+            <motion.p
+              className="text-xl text-muted-foreground text-center max-w-[600px] mb-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              Build your drill, collect the yield, and watch your USDC flow.
+            </motion.p>
+
+            {/* Original Drill Carousel */}
+            <div className="w-full max-w-7xl mx-auto mb-16">
+              <h2 className="text-3xl font-bold mb-6">Available Fluids</h2>
+              <DrillCarousel
+                userDrills={[]}
+                exampleDrills={exampleDrills}
+                onShutdown={handleShutdown}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      <OilPool />
+        {/* OilPool positioned to appear as if it's underground */}
+        <div className="relative z-10 mt-10">
+          <OilPool />
+        </div>
+      </div>
     </>
   );
 }

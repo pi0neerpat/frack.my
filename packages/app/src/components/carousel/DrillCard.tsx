@@ -39,7 +39,7 @@ export function DrillCard({
     <Card
       className={cn(
         "relative overflow-hidden transition-opacity",
-        isExample ? "opacity-50" : "hover:border-purple-500/50"
+        isExample ? "opacity-90" : "hover:border-purple-500/50"
       )}
     >
       <motion.div

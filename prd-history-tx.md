@@ -1,6 +1,6 @@
 # Implementation Plan: Local Transaction Storage & Drill-Specific Transaction Display
 
-## 1. Local Transaction Storage Architecture (Using localStorage)
+## 1. Local Transaction Storage Architecture
 
 ### Data Model
 
@@ -21,7 +21,7 @@ interface Transaction {
   metadata?: Record<string, any>; // Additional transaction-specific data
 }
 
-// Define the localStorage structure
+// Define the storage structure
 interface TransactionStore {
   transactions: Record<string, Transaction>;  // Keyed by transaction ID
   lastUpdated: number;                        // Timestamp for cache invalidation
@@ -29,14 +29,13 @@ interface TransactionStore {
 }
 ```
 
-### Storage Implementation with localStorage
+### Storage Implementation
 
 ```typescript
 // src/lib/transaction-store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Using Zustand with the persist middleware to store data in localStorage
 type TransactionState = {
   transactions: Record<string, Transaction>;
   lastUpdated: number;
@@ -94,26 +93,13 @@ export const useTransactionStore = create<TransactionState>()(
         set({ lastFetchedBlock: blockNumber }),
     }),
     {
-      name: 'frack-my-transactions', // localStorage key name
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-          return JSON.parse(str);
-        },
-        setItem: (name, value) => {
-          // Optionally implement size checking and pruning logic here
-          // if (JSON.stringify(value).length > SOME_LIMIT) { prune old transactions }
-          localStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      },
+      name: 'frack-my-transactions',
     }
   )
 );
 ```
 
-## 2. Transaction Fetching Logic (with localStorage Caching)
+## 2. Transaction Fetching Logic
 
 ```typescript
 // src/hooks/use-transactions.ts
@@ -151,7 +137,7 @@ export function useTransactions(drillId?: string) {
     (a, b) => b.timestamp - a.timestamp
   );
   
-  // Function to fetch historical logs and cache in localStorage
+  // Function to fetch historical logs
   const fetchHistoricalLogs = async () => {
     if (!address) return;
     
@@ -159,7 +145,7 @@ export function useTransactions(drillId?: string) {
     setError(null);
     
     try {
-      // Determine start block (use last fetched from localStorage or a default)
+      // Determine start block (use last fetched or a default)
       const fromBlock = lastFetchedBlock > 0 
         ? lastFetchedBlock + 1 
         : BigInt(process.env.NEXT_PUBLIC_STARTING_BLOCK || '0');
@@ -203,7 +189,7 @@ export function useTransactions(drillId?: string) {
         // ... similar mapping for withdraw logs
       ]);
       
-      // Update localStorage store through Zustand
+      // Update store
       addTransactions(parsedTransactions);
       setLastFetchedBlock(Number(latestBlock));
     } catch (err) {
@@ -222,7 +208,6 @@ export function useTransactions(drillId?: string) {
   };
   
   // Effect to fetch logs on component mount and address change
-  // This will use the cached data from localStorage first, then update if needed
   useEffect(() => {
     if (address) {
       fetchHistoricalLogs();
@@ -431,9 +416,9 @@ export default function DrillPage({ params }: { params: { id: string } }) {
 }
 ```
 
-## 5. Auto-Updating Mechanism with localStorage Storage
+## 5. Auto-Updating Mechanism
 
-The transaction store should be updated when new transactions occur, with all data persisted to localStorage automatically through Zustand:
+The transaction store should be updated when new transactions occur. One approach is to listen for real-time events:
 
 ```typescript
 // src/hooks/use-transaction-watcher.ts
@@ -462,7 +447,7 @@ export function useTransactionWatcher() {
           log.args.user?.toLowerCase() === address.toLowerCase()
         );
         
-        // Process and add to localStorage via Zustand
+        // Process and add to store
         for (const log of userLogs) {
           const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
           
@@ -495,9 +480,9 @@ export function useTransactionWatcher() {
 }
 ```
 
-## 6. Real-Time Transaction Handling with localStorage Updates
+## 6. Real-Time Transaction Handling
 
-To ensure real-time updates when a user performs a new transaction, with data persisted to localStorage:
+To ensure real-time updates when a user performs a new transaction through your UI:
 
 ```typescript
 // src/hooks/use-transaction-handler.ts
@@ -573,122 +558,33 @@ export function useDepositTransaction(drillId: string) {
 // Similar hooks for withdraw and harvest
 ```
 
-## 7. localStorage Optimization Strategy
-
-Because localStorage has a limited size (usually 5-10MB depending on the browser), we need to implement strategies to manage data growth:
-
-### Size Management
-
-```typescript
-// src/lib/storage-manager.ts
-const MAX_STORAGE_SIZE = 4 * 1024 * 1024; // 4MB limit
-
-export function manageStorageSize(storeName: string) {
-  // Get current storage size
-  const data = localStorage.getItem(storeName);
-  if (!data) return;
-  
-  // Check size
-  const sizeInBytes = new Blob([data]).size;
-  
-  // If approaching limits, prune old transactions
-  if (sizeInBytes > MAX_STORAGE_SIZE) {
-    const parsedData = JSON.parse(data);
-    if (!parsedData.state?.transactions) return;
-    
-    // Get all transactions and sort by timestamp
-    const transactions = Object.values(parsedData.state.transactions) as Transaction[];
-    const sortedTransactions = [...transactions].sort(
-      (a, b) => a.timestamp - b.timestamp
-    );
-    
-    // Remove oldest 20% of transactions
-    const removeCount = Math.ceil(sortedTransactions.length * 0.2);
-    const transactionsToKeep = sortedTransactions.slice(removeCount);
-    
-    // Rebuild transaction map
-    const newTransactions: Record<string, Transaction> = {};
-    transactionsToKeep.forEach(tx => {
-      newTransactions[tx.id] = tx;
-    });
-    
-    // Update storage
-    parsedData.state.transactions = newTransactions;
-    localStorage.setItem(storeName, JSON.stringify(parsedData));
-  }
-}
-```
-
-### Integration with Transaction Store
-
-Update the storage implementation to use this manager:
-
-```typescript
-// In transaction-store.ts, update the persist middleware
-
-export const useTransactionStore = create<TransactionState>()(
-  persist(
-    (set) => ({
-      // ... existing implementation
-    }),
-    {
-      name: 'frack-my-transactions',
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-          return JSON.parse(str);
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value));
-          // After updating storage, check and manage size
-          manageStorageSize(name);
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      },
-    }
-  )
-);
-```
-
-## 8. Implementation Timeline
+## 7. Implementation Timeline
 
 ### Phase 1: Core Infrastructure (Week 1)
-- Set up localStorage-based transaction store with Zustand
-- Implement basic transaction fetching with localStorage caching
-- Create storage size management utilities
+- Set up transaction store with Zustand
+- Implement basic transaction fetching
+- Create transaction indexing service
 
 ### Phase 2: Drill-Specific Transaction UI (Week 2)
-- Develop the DrillTransactions component that reads from localStorage
+- Develop the DrillTransactions component
 - Integrate with drill page
-- Add filtering and sorting capabilities for local data
+- Add filtering and sorting capabilities
 
 ### Phase 3: Real-Time Updates (Week 3)
-- Implement event watchers for real-time updates with localStorage persistence
+- Implement event watchers for real-time updates
 - Add transaction handling for new user actions
 - Finalize UI/UX and test across scenarios
-- Implement localStorage pruning for performance
 
-## 9. Testing Strategy
+## 8. Testing Strategy
 
 ### Unit Tests
-- Test localStorage persistence with mock data
-- Test storage size management functionality
+- Test store functionality (adding, updating transactions)
 - Test data formatting and filtering logic
 
 ### Integration Tests
-- Test event parsing and localStorage updates
-- Test UI components with localStorage mock data
+- Test event parsing and contract interaction
+- Test UI components with mock data
 
 ### End-to-End Tests
-- Test full transaction flow (create transaction → store in localStorage → display in history)
-- Test storage limitations and pruning mechanisms
-- Test persistence across page refreshes
-
-## 10. localStorage Considerations and Limitations
-
-- **Size Limits**: localStorage is typically limited to 5-10MB per domain. Implement pruning strategies.
-- **Performance**: For large datasets, reading/writing to localStorage can impact performance. Use optimization techniques like serialization/deserialization optimization.
-- **Persistence**: Data persists across browser sessions but will be lost if the user clears browser data or uses private browsing.
-- **User Privacy**: Consider adding an option for users to clear their transaction history.
-- **Cross-Device Limitation**: localStorage is device-specific, so users won't see the same history across different devices.
+- Test full transaction flow (create transaction → display in history)
+- Test drill-specific filtering
