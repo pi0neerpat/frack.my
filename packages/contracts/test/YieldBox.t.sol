@@ -438,7 +438,77 @@ contract YieldBoxTest is Test {
     ///      - Yield is properly streamed via USDCx
     ///      - Stream rates are calculated correctly
     ///      - Users receive correct stream amounts
-    function test_YieldStreaming() public {}
+    function test_YieldStreaming() public {
+        // Create deposit amounts with underlying token decimals (6 for USDC)
+        e memory aliceDepositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        e memory bobDepositAmount = Dec.make(1000e6, U_TOKEN_DEC);   // 1000 USDC (equal deposits)
+        e memory yieldAmount = Dec.make(200e6, U_TOKEN_DEC);         // 200 USDC yield
+
+        // Initial deposits from Alice and Bob
+        _depositAndConnect(alice, aliceDepositAmount);
+        _depositAndConnect(bob, bobDepositAmount);
+        
+        // Generate yield
+        _simulateYield(yieldAmount.value);
+        
+        // Harvest yield
+        vm.warp(block.timestamp + 12 hours);
+        e18 harvestedYield = yieldBox.upgradeAll();
+        
+        // Convert yield to 18 decimals for comparison
+        e memory expectedYield18 = A.to(yieldAmount, E18_DEC);
+        assertApproxEqAbs(F.unwrap(harvestedYield), expectedYield18.value, 1e12, 
+                         "Incorrect harvested yield amount");
+        
+        // Start streaming
+        yieldBox.smother();
+        
+        // Verify stream is created with correct flow rate
+        int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
+        assertGt(flowRate, 0, "No stream created");
+        
+        // Calculate expected flow rate (yield distributed over 24 hours)
+        e memory expectedFlowRate = Dec.make(expectedYield18.value / (24 hours), E18_DEC);
+        assertApproxEqAbs(flowRate, int96(uint96(expectedFlowRate.value)), 1e12, 
+                         "Incorrect flow rate");
+        
+        // Fast forward to receive some yield (6 hours = 25% of the yield)
+        vm.warp(block.timestamp + 6 hours);
+        
+        // Get amounts streamed to each user
+        e memory aliceStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), alice), E18_DEC);
+        e memory bobStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), bob), E18_DEC);
+        
+        // Verify both users received yield
+        assertGt(aliceStreamed.value, 0, "Alice received no yield");
+        assertGt(bobStreamed.value, 0, "Bob received no yield");
+        
+        // Since Alice and Bob have equal deposits, they should receive equal yield
+        assertApproxEqAbs(aliceStreamed.value, bobStreamed.value, 1e12, 
+                         "Alice and Bob should receive equal yield");
+        
+        // Verify the amount streamed is approximately 25% of the total yield (6/24 hours)
+        // Use a larger delta (1%) for the approximation due to potential timing differences
+        e memory expectedStreamed = Dec.make(expectedYield18.value / 4, E18_DEC); // 25% of yield
+        e memory totalStreamed = Dec.make(aliceStreamed.value + bobStreamed.value, E18_DEC);
+        
+        uint256 onePercentOfExpected = expectedStreamed.value / 100;
+        assertApproxEqAbs(totalStreamed.value, expectedStreamed.value, onePercentOfExpected, 
+                         "Incorrect total streamed amount");
+        
+        // Fast forward to the end of the distribution period (another 18 hours)
+        vm.warp(block.timestamp + 18 hours);
+        
+        // Get final amounts streamed
+        e memory aliceFinalStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), alice), E18_DEC);
+        e memory bobFinalStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), bob), E18_DEC);
+        
+        // Verify users received the full yield amount (with 1% tolerance)
+        e memory totalFinalStreamed = Dec.make(aliceFinalStreamed.value + bobFinalStreamed.value, E18_DEC);
+        uint256 onePercentOfTotal = expectedYield18.value / 100;
+        assertApproxEqAbs(totalFinalStreamed.value, expectedYield18.value, onePercentOfTotal, 
+                         "Full yield amount not distributed");
+    }
 
     /**** Edge Cases and Security Tests ****/
 
