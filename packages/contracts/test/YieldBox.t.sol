@@ -616,7 +616,76 @@ contract YieldBoxTest is Test {
     ///      - Users can withdraw in emergency
     ///      - Proper handling of streams during emergency
     ///      - System state after emergency
-    function test_EmergencyWithdrawal() public {}
+    function test_EmergencyWithdrawal() public {
+        // Create deposit amounts with underlying token decimals (6 for USDC)
+        e memory aliceDepositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        e memory bobDepositAmount = Dec.make(500e6, U_TOKEN_DEC);    // 500 USDC
+        e memory yieldAmount = Dec.make(150e6, U_TOKEN_DEC);         // 150 USDC yield
+        
+        // Initial deposits from Alice and Bob
+        _depositAndConnect(alice, aliceDepositAmount);
+        _depositAndConnect(bob, bobDepositAmount);
+        
+        // Generate yield and start streaming
+        _simulateYield(yieldAmount.value);
+        vm.warp(block.timestamp + 12 hours);
+        yieldBox.upgradeAll();
+        yieldBox.smother();
+        
+        // Fast forward to receive some yield
+        vm.warp(block.timestamp + 6 hours);
+        
+        // Record yield received so far
+        uint256 aliceYieldBefore = usdcx.balanceOf(alice);
+        uint256 bobYieldBefore = usdcx.balanceOf(bob);
+        
+        // Simulate emergency: Alice needs to withdraw immediately
+        e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
+        
+        // Emergency withdrawal
+        _withdraw(alice, A.to18(aliceDepositAmount));
+        
+        // Verify Alice received her full principal
+        assertEq(usdc.balanceOf(alice), aliceInitialBalance.value + aliceDepositAmount.value, 
+                "Alice should receive full principal in emergency");
+        
+        // Verify Alice's share balance is zero
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), 0, 
+                "Alice should have 0 shares after emergency withdrawal");
+        
+        // Verify Alice's pool units are zero
+        assertEq(yieldBox.distributionPool().getUnits(alice), 0, 
+                "Alice should have 0 pool units after emergency withdrawal");
+        
+        // Verify Alice still has her yield received so far
+        assertEq(usdcx.balanceOf(alice), aliceYieldBefore, 
+                "Alice should keep yield received before emergency withdrawal");
+        
+        // Fast forward more time
+        vm.warp(block.timestamp + 6 hours);
+        
+        // Verify Alice doesn't receive more yield after withdrawal
+        assertEq(usdcx.balanceOf(alice), aliceYieldBefore, 
+                "Alice should not receive more yield after withdrawal");
+        
+        // Verify Bob continues to receive yield
+        assertGt(usdcx.balanceOf(bob), bobYieldBefore, 
+                "Bob should continue receiving yield");
+        
+        // Verify Bob can still withdraw his principal
+        e memory bobInitialBalance = Dec.make(usdc.balanceOf(bob), U_TOKEN_DEC);
+        
+        _withdraw(bob, A.to18(bobDepositAmount));
+        
+        // Verify Bob received his full principal
+        assertEq(usdc.balanceOf(bob), bobInitialBalance.value + bobDepositAmount.value, 
+                "Bob should receive full principal after Alice's emergency withdrawal");
+        
+        // Verify total deposited assets is zero
+        assertEq(F.unwrap(yieldBox.totalDepositedAssets()), 0, 
+                "Total deposited assets should be 0 after all withdrawals");
+    }
+
     /**** Revert Cases ****/
 
     /// @notice Tests that unauthorized actions revert
