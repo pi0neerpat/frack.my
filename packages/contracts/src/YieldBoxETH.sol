@@ -231,7 +231,7 @@ contract YieldBoxETH is ReentrancyGuard {
         e memory totalEthInStrategy = Dec.make(ethStrategy.totalAssets(), E_TOKEN_DEC);
         
         // If strategy has less than our deposit (loss), return 0
-        if (A.lt(totalEthInStrategy, ourDeposit, E_TOKEN_DEC)) {
+        if (totalEthInStrategy.value < ourDeposit.value) {
             return Dec.make18(0);
         }
         
@@ -240,7 +240,7 @@ contract YieldBoxETH is ReentrancyGuard {
     }
     
     // Calculate the estimated USDC value of the latent ETH yield
-    function latentYieldInUSDC() public view returns (e) {
+    function latentYieldInUSDC() public view returns (e memory) {
         e18 ethYield = latentYield();
         if (F.unwrap(ethYield) == 0) {
             return Dec.make(0, U_TOKEN_DEC);

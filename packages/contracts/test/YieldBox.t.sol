@@ -72,18 +72,18 @@ contract YieldBoxTest is Test {
             usdc.balanceOf(address(mockVault)) + amount);
     }
 
-    function _harvestYield() internal returns (e18 upgraded) {
+    function _harvestYield() internal returns (e18) {
         // Get the initial USDCx balance of the yieldBox
         uint256 initialUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
         
         // Call the individual functions in the correct order
-        yieldBox.withdrawSurplus();
-        // check how much underlying token was withdrawn
-        e memory withdrawn = Dec.make(usdc.balanceOf(address(yieldBox)), U_TOKEN_DEC);
-
-        yieldBox.turnItIntoCash();
-        // check how much USDCx was upgraded
-        upgraded = A.to18(yieldToken.balanceOf(address(yieldBox)));
+        yieldBox.upgradeAll();
+        
+        // Calculate the actual yield from the change in USDCx balance
+        uint256 finalUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
+        e18 actualYield = Dec.make18(finalUSDCxBalance - initialUSDCxBalance);
+        
+        return actualYield;
     }
 
     function _depositAndConnect(address user, e memory amount) internal {
@@ -431,8 +431,7 @@ contract YieldBoxTest is Test {
         // Generate yield and create stream
         _simulateYield(100e6); // 100 USDC yield
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.withdrawSurplus();
-        yieldBox.turnItIntoCash();
+        yieldBox.upgradeAll();
         yieldBox.smother();
         
         // Verify stream is created
@@ -470,8 +469,8 @@ contract YieldBoxTest is Test {
         uint256 initialUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
         
         // Withdraw surplus and convert to USDCx
-        yieldBox.withdrawSurplus();
-        yieldBox.turnItIntoCash();
+        yieldBox.upgradeAll();
+        yieldBox.smother();
         
         // Calculate harvested yield
         uint256 harvestedYieldValue = yieldToken.balanceOf(address(yieldBox)) - initialUSDCxBalance;
@@ -551,7 +550,7 @@ contract YieldBoxTest is Test {
         
         // Expect revert when trying to withdraw surplus with no yield
         vm.expectRevert("No yield to upgrade");
-        yieldBox.withdrawSurplus();
+        yieldBox.upgradeAll();
         
         // Verify no streams were created
         int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
@@ -651,8 +650,7 @@ contract YieldBoxTest is Test {
         // Generate yield and start streaming
         _simulateYield(yieldAmount.value);
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.withdrawSurplus();
-        yieldBox.turnItIntoCash();
+        yieldBox.upgradeAll();
         yieldBox.smother();
         
         // Fast forward to receive some yield

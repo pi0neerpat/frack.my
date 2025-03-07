@@ -38,7 +38,8 @@ contract MockSwapRouter {
         require(usdcAmount >= amountOutMin, "Insufficient output amount");
         
         // Transfer USDC to recipient
-        IERC20(USDC_ADDRESS).transfer(to, usdcAmount);
+        bool success = IERC20(USDC_ADDRESS).transfer(to, usdcAmount);
+        require(success, "USDC transfer failed");
         
         // Return amounts for compatibility with Uniswap interface
         amounts = new uint256[](path.length);
