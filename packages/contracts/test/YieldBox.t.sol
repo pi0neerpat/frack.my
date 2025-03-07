@@ -734,7 +734,49 @@ contract YieldBoxTest is Test {
     /// @dev Should verify:
     ///      - Withdrawals with insufficient balance revert
     ///      - Proper error messages are returned
-    function test_RevertIf_InsufficientFunds() public {}
+    function test_RevertIf_InsufficientFunds() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
+        e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        
+        // Initial deposit from Alice
+        _depositAndConnect(alice, depositAmount);
+        
+        // Test: Alice tries to withdraw more than she deposited
+        e memory excessAmount = Dec.make(1001e6, U_TOKEN_DEC); // 1001 USDC (just over deposit)
+        vm.startPrank(alice);
+        vm.expectRevert("Insufficient balance");
+        yieldBox.withdraw(A.to18(excessAmount));
+        vm.stopPrank();
+        
+        // Test: Alice withdraws part of her deposit
+        e memory partialAmount = Dec.make(500e6, U_TOKEN_DEC); // 500 USDC
+        _withdraw(alice, A.to18(partialAmount));
+        
+        // Verify Alice's remaining balance
+        e18 expectedRemainingBalance = F.sub(A.to18(depositAmount), A.to18(partialAmount));
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(expectedRemainingBalance), 
+                "Alice's remaining balance incorrect after partial withdrawal");
+        
+        // Test: Alice tries to withdraw more than her remaining balance
+        vm.startPrank(alice);
+        vm.expectRevert("Insufficient balance");
+        yieldBox.withdraw(A.to18(depositAmount)); // Try to withdraw original full amount
+        vm.stopPrank();
+        
+        // Test: Alice withdraws exactly her remaining balance
+        e memory remainingAmount = Dec.make(500e6, U_TOKEN_DEC); // 500 USDC remaining
+        _withdraw(alice, A.to18(remainingAmount));
+        
+        // Verify Alice's balance is now zero
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), 0, 
+                "Alice's balance should be zero after full withdrawal");
+        
+        // Test: Alice tries to withdraw again with zero balance
+        vm.startPrank(alice);
+        vm.expectRevert("Insufficient balance");
+        yieldBox.withdraw(A.to18(Dec.make(1e6, U_TOKEN_DEC))); // Try to withdraw 1 USDC
+        vm.stopPrank();
+    }
 
     /// @notice Tests reentrancy protection
     /// @dev Should verify:
