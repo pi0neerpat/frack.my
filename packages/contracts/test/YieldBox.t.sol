@@ -72,6 +72,20 @@ contract YieldBoxTest is Test {
             usdc.balanceOf(address(mockVault)) + amount);
     }
 
+    function _harvestYield() internal returns (e18 upgraded) {
+        // Get the initial USDCx balance of the yieldBox
+        uint256 initialUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
+        
+        // Call the individual functions in the correct order
+        yieldBox.withdrawSurplus();
+        // check how much underlying token was withdrawn
+        e memory withdrawn = Dec.make(usdc.balanceOf(address(yieldBox)), U_TOKEN_DEC);
+
+        yieldBox.turnItIntoCash();
+        // check how much USDCx was upgraded
+        upgraded = A.to18(yieldToken.balanceOf(address(yieldBox)));
+    }
+
     function _depositAndConnect(address user, e memory amount) internal {
         // check that amount is in the correct decimals
         assertEq(D.unwrap(amount.decimals), D.unwrap(U_TOKEN_DEC), "Amount is not in the correct decimals");
@@ -167,12 +181,6 @@ contract YieldBoxTest is Test {
         e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
         e memory vaultInitialBalance = Dec.make(usdc.balanceOf(address(mockVault)), U_TOKEN_DEC);
         
-        // Get initial shares (in 18 decimals) and convert to underlying decimals for comparison
-        e18 initialShares18 = yieldBox.balanceOf(alice);
-        
-        // Get initial pool units (in 9 decimals)
-        uint128 initialPoolUnits = yieldBox.distributionPool().getUnits(alice);
-        
         // Withdraw full position (need to convert to 18 decimals for withdraw function)
         _withdraw(alice, A.to18(depositAmount));
 
@@ -259,10 +267,6 @@ contract YieldBoxTest is Test {
         // Initial deposit from Alice
         _depositAndConnect(alice, depositAmount);
         
-        // Get balances before harvest with correct decimal precision
-        e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
-        e memory initialVaultBalance = Dec.make(mockVault.totalAssets(), U_TOKEN_DEC);
-        
         // Generate yield in mock vault (10% return)
         _simulateYield(yieldAmount.value);
         
@@ -278,12 +282,19 @@ contract YieldBoxTest is Test {
         
         // Harvest yield
         vm.warp(block.timestamp + 12 hours); // Wait minimum harvest delay
-        yieldBox.upgradeAll();
+        
+        // Record initial balance and harvest yield
+        uint256 initialUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
+        e18 withdrawnYield = _harvestYield();
+        
+        // Verify withdrawn yield matches expected yield
+        assertApproxEqAbs(F.unwrap(withdrawnYield), F.unwrap(yieldAmount_18dec), 1e12,
+                         "Incorrect yield withdrawn");
         
         // Check USDCx balance (18 decimals)
         // Convert yield amount to 18 decimals for SuperToken comparison
         e memory expectedUSDCx = A.to(yieldAmount, E18_DEC);
-        assertApproxEqAbs(yieldToken.balanceOf(address(yieldBox)), expectedUSDCx.value, 1e12, 
+        assertApproxEqAbs(yieldToken.balanceOf(address(yieldBox)) - initialUSDCxBalance, expectedUSDCx.value, 1e12, 
                          "Not all underlying upgraded");
 
         // Start the stream and check the flow rate
@@ -336,7 +347,7 @@ contract YieldBoxTest is Test {
         
         // Harvest first yield batch (only Alice should receive this)
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.upgradeAll();
+        _harvestYield();
         yieldBox.smother();
         
         // Now Bob deposits
@@ -347,7 +358,7 @@ contract YieldBoxTest is Test {
         
         // Harvest second yield batch
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.upgradeAll();
+        _harvestYield();
         yieldBox.smother();
         
         // Fast forward to receive some yield
@@ -420,7 +431,8 @@ contract YieldBoxTest is Test {
         // Generate yield and create stream
         _simulateYield(100e6); // 100 USDC yield
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.upgradeAll();
+        yieldBox.withdrawSurplus();
+        yieldBox.turnItIntoCash();
         yieldBox.smother();
         
         // Verify stream is created
@@ -453,7 +465,17 @@ contract YieldBoxTest is Test {
         
         // Harvest yield
         vm.warp(block.timestamp + 12 hours);
-        e18 harvestedYield = yieldBox.upgradeAll();
+        
+        // Store initial USDCx balance
+        uint256 initialUSDCxBalance = yieldToken.balanceOf(address(yieldBox));
+        
+        // Withdraw surplus and convert to USDCx
+        yieldBox.withdrawSurplus();
+        yieldBox.turnItIntoCash();
+        
+        // Calculate harvested yield
+        uint256 harvestedYieldValue = yieldToken.balanceOf(address(yieldBox)) - initialUSDCxBalance;
+        e18 harvestedYield = Dec.make18(harvestedYieldValue);
         
         // Convert yield to 18 decimals for comparison
         e memory expectedYield18 = A.to(yieldAmount, E18_DEC);
@@ -527,9 +549,9 @@ contract YieldBoxTest is Test {
         // Try to harvest with no yield
         vm.warp(block.timestamp + 12 hours);
         
-        // Expect revert when trying to upgrade with no yield
+        // Expect revert when trying to withdraw surplus with no yield
         vm.expectRevert("No yield to upgrade");
-        yieldBox.upgradeAll();
+        yieldBox.withdrawSurplus();
         
         // Verify no streams were created
         int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
@@ -629,7 +651,8 @@ contract YieldBoxTest is Test {
         // Generate yield and start streaming
         _simulateYield(yieldAmount.value);
         vm.warp(block.timestamp + 12 hours);
-        yieldBox.upgradeAll();
+        yieldBox.withdrawSurplus();
+        yieldBox.turnItIntoCash();
         yieldBox.smother();
         
         // Fast forward to receive some yield
