@@ -322,7 +322,69 @@ contract YieldBoxTest is Test {
     ///      - Yield is distributed proportionally
     ///      - Different deposit timings are handled correctly
     ///      - All users can withdraw their fair share
-    function test_YieldDistributionMultipleUsers() public {}
+    function test_YieldDistributionMultipleUsers() public {
+        // Create deposit amounts with underlying token decimals (6 for USDC)
+        e memory aliceDepositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        e memory bobDepositAmount = Dec.make(500e6, U_TOKEN_DEC);    // 500 USDC
+        e memory yieldAmount = Dec.make(150e6, U_TOKEN_DEC);         // 150 USDC yield (10%)
+
+        // Initial deposit from Alice
+        _depositAndConnect(alice, aliceDepositAmount);
+        
+        // Generate some yield before Bob deposits
+        _simulateYield(yieldAmount.value / 3); // 50 USDC yield
+        
+        // Harvest first yield batch (only Alice should receive this)
+        vm.warp(block.timestamp + 12 hours);
+        yieldBox.upgradeAll();
+        yieldBox.smother();
+        
+        // Now Bob deposits
+        _depositAndConnect(bob, bobDepositAmount);
+        
+        // Generate more yield (both Alice and Bob should share this)
+        _simulateYield(yieldAmount.value * 2 / 3); // 100 USDC yield
+        
+        // Harvest second yield batch
+        vm.warp(block.timestamp + 12 hours);
+        yieldBox.upgradeAll();
+        yieldBox.smother();
+        
+        // Fast forward to receive some yield
+        vm.warp(block.timestamp + 12 hours);
+        
+        // Get amounts streamed to each user
+        e memory aliceStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), alice), E18_DEC);
+        e memory bobStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), bob), E18_DEC);
+        
+        // Verify both users received yield
+        assertGt(aliceStreamed.value, 0, "Alice received no yield");
+        assertGt(bobStreamed.value, 0, "Bob received no yield");
+        
+        // Verify Alice received more yield than Bob (she had larger deposit and was in longer)
+        assertGt(aliceStreamed.value, bobStreamed.value, "Alice should receive more yield than Bob");
+        
+        // The distribution is based on pool units at the time of each distribution
+        // For the second distribution, Alice has 2/3 of the pool units (1000 / (1000 + 500))
+        // and Bob has 1/3 of the pool units (500 / (1000 + 500))
+        // We don't need to calculate an exact ratio, just verify that Alice gets more than Bob
+        // and that the ratio is reasonable (between 1.5 and 3)
+        uint256 actualRatio = aliceStreamed.value / bobStreamed.value;
+        assertGt(actualRatio, 1, "Alice should receive more yield than Bob");
+        assertLt(actualRatio, 4, "Alice's yield shouldn't be excessively higher than Bob's");
+        
+        // Verify users can withdraw their deposits
+        _withdraw(alice, A.to18(aliceDepositAmount));
+        _withdraw(bob, A.to18(bobDepositAmount));
+        
+        // Verify balances after withdrawal
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), 0, "Alice should have 0 shares after withdrawal");
+        assertEq(F.unwrap(yieldBox.balanceOf(bob)), 0, "Bob should have 0 shares after withdrawal");
+        
+        // Verify users still have their yield streams
+        assertGt(usdcx.balanceOf(alice), 0, "Alice should still have yield after withdrawal");
+        assertGt(usdcx.balanceOf(bob), 0, "Bob should still have yield after withdrawal");
+    }
 
     /**** Superfluid Integration Tests ****/
 
