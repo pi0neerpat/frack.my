@@ -559,7 +559,57 @@ contract YieldBoxTest is Test {
     ///      - Minimum deposit amounts
     ///      - Maximum deposit limits if any
     ///      - Zero deposit handling
-    function test_DepositLimits() public {}
+    function test_DepositLimits() public {
+        // Test zero deposit (should revert)
+        vm.startPrank(alice);
+        usdc.approve(address(yieldBox), 0);
+        vm.expectRevert("Deposit too small");
+        yieldBox.deposit(0);
+        vm.stopPrank();
+        
+        // Test deposit below minimum (should revert)
+        // MINIMUM_DEPOSIT is 1e6 (1 USDC)
+        e memory tinyDeposit = Dec.make(1e5, U_TOKEN_DEC); // 0.1 USDC
+        
+        vm.startPrank(alice);
+        usdc.approve(address(yieldBox), tinyDeposit.value);
+        vm.expectRevert("Deposit too small");
+        yieldBox.deposit(tinyDeposit.value);
+        vm.stopPrank();
+        
+        // Test minimum deposit (should succeed)
+        e memory minDeposit = Dec.make(1e6, U_TOKEN_DEC); // 1 USDC (minimum)
+        
+        vm.startPrank(alice);
+        usdc.approve(address(yieldBox), minDeposit.value);
+        yieldBox.deposit(minDeposit.value);
+        vm.stopPrank();
+        
+        // Verify minimum deposit was accepted
+        e18 expectedShares = A.to18(minDeposit);
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(expectedShares), 
+                "Minimum deposit not accepted");
+        
+        // Test very large deposit (should succeed)
+        // First withdraw the minimum deposit
+        _withdraw(alice, A.to18(minDeposit));
+        
+        // Then try a large deposit
+        e memory largeDeposit = Dec.make(1000000e6, U_TOKEN_DEC); // 1,000,000 USDC
+        
+        // Ensure Alice has enough USDC
+        deal(USDC_ADDRESS, alice, largeDeposit.value);
+        
+        vm.startPrank(alice);
+        usdc.approve(address(yieldBox), largeDeposit.value);
+        yieldBox.deposit(largeDeposit.value);
+        vm.stopPrank();
+        
+        // Verify large deposit was accepted
+        e18 expectedLargeShares = A.to18(largeDeposit);
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(expectedLargeShares), 
+                "Large deposit not accepted");
+    }
 
     /// @notice Tests emergency withdrawal functionality
     /// @dev Should verify:
