@@ -686,14 +686,49 @@ contract YieldBoxTest is Test {
                 "Total deposited assets should be 0 after all withdrawals");
     }
 
-    /**** Revert Cases ****/
-
     /// @notice Tests that unauthorized actions revert
     /// @dev Should verify:
     ///      - Only owner can perform admin functions
     ///      - Users can't withdraw more than they deposited
     ///      - Invalid operations revert with correct errors
-    function test_RevertWhen_UnauthorizedActions() public {}
+    function test_RevertWhen_UnauthorizedActions() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
+        e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        
+        // Initial deposit from Alice
+        _depositAndConnect(alice, depositAmount);
+        
+        // Test: Bob tries to withdraw Alice's funds
+        vm.startPrank(bob);
+        vm.expectRevert("Insufficient balance");
+        yieldBox.withdraw(A.to18(depositAmount));
+        vm.stopPrank();
+        
+        // Test: Alice tries to withdraw more than she deposited
+        e memory excessAmount = Dec.make(2000e6, U_TOKEN_DEC); // 2000 USDC
+        vm.startPrank(alice);
+        vm.expectRevert("Insufficient balance");
+        yieldBox.withdraw(A.to18(excessAmount));
+        vm.stopPrank();
+        
+        // Test: Alice tries to withdraw zero
+        vm.startPrank(alice);
+        vm.expectRevert("Cannot withdraw 0");
+        yieldBox.withdraw(Dec.make18(0));
+        vm.stopPrank();
+        
+        // Verify Alice's balance is still intact
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(A.to18(depositAmount)), 
+                "Alice's balance should be unchanged after failed withdrawals");
+        
+        // Verify Alice can still withdraw her actual deposit
+        e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
+        _withdraw(alice, A.to18(depositAmount));
+        
+        // Verify Alice received her full principal
+        assertEq(usdc.balanceOf(alice), aliceInitialBalance.value + depositAmount.value, 
+                "Alice should receive full principal after failed withdrawals");
+    }
 
     /// @notice Tests system behavior with insufficient funds
     /// @dev Should verify:
