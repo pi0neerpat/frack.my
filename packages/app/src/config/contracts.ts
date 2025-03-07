@@ -1,7 +1,7 @@
 export const FRACKING_ADDRESS =
-  "0x0000000000000000000000000000000000000001" as const;
+  "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9" as const;
 
-export const FRACKING_ABI = [
+export const YIELD_BOX_ABI = [
   {
     type: "constructor",
     inputs: [

@@ -2665,7 +2665,7 @@ File: config/contracts.ts
 ================
 export const FRACKING_ADDRESS = "0x..." as const;
 
-export const FRACKING_ABI = [
+export const YIELD_BOX_ABI = [
   {
     type: "constructor",
     inputs: [

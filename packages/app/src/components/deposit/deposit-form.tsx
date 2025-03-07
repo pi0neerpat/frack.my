@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
-import { FRACKING_ABI, FRACKING_ADDRESS, ERC20_ABI } from "@/config/contracts";
+import { YIELD_BOX_ABI, FRACKING_ADDRESS, ERC20_ABI } from "@/config/contracts";
 import { FLUIDS } from "@/config/fluids";
 import { formatCurrency } from "@/lib/utils";
 
@@ -362,7 +362,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
 
       writeDeposit({
         address: vaultAddressToUse,
-        abi: FRACKING_ABI,
+        abi: YIELD_BOX_ABI,
         functionName: "deposit",
         args: [parsedAmount],
       });

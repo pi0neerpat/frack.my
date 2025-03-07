@@ -5,6 +5,7 @@ export interface Fluid {
   protocol: string; // Protocol name (Lido, RocketPool)
   strategy: string; // Strategy type (Liquid Staking, LP)
   yieldRate: number; // Current APY
+  price: number; // Current price in USD
   globalStats: {
     drillCount: number; // Total active drills
     flowRate: number; // Total USDC/month flowing
@@ -22,9 +23,10 @@ const TESTNET_FLUIDS: Fluid[] = [
     protocol: "Test Protocol",
     strategy: "Test Strategy",
     yieldRate: 3,
+    price: 1.0, // $1 for test token
     globalStats: {
       drillCount: 2,
-      flowRate: 200,
+      flowRate: 100,
       tvl: 10000,
     },
     vaultAddress: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
@@ -40,6 +42,7 @@ const MAINNET_FLUIDS: Fluid[] = [
     protocol: "Lido",
     strategy: "Liquid Staking",
     yieldRate: 4.85,
+    price: 3450.75, // Current ETH price in USD
     globalStats: {
       drillCount: 156,
       flowRate: 1234.56,
@@ -55,6 +58,7 @@ const MAINNET_FLUIDS: Fluid[] = [
     protocol: "Lido",
     strategy: "Liquid Staking",
     yieldRate: 3.75,
+    price: 3475.2, // Current wstETH price in USD
     globalStats: {
       drillCount: 89,
       flowRate: 876.43,
@@ -70,6 +74,7 @@ const MAINNET_FLUIDS: Fluid[] = [
     protocol: "Rocket Pool",
     strategy: "Liquid Staking",
     yieldRate: 3.92,
+    price: 3468.35, // Current rETH price in USD
     globalStats: {
       drillCount: 67,
       flowRate: 654.32,
@@ -85,6 +90,7 @@ const MAINNET_FLUIDS: Fluid[] = [
     protocol: "BitGo",
     strategy: "Wrapped Asset",
     yieldRate: 2.15,
+    price: 62345.8, // Current WBTC price in USD
     globalStats: {
       drillCount: 42,
       flowRate: 432.1,

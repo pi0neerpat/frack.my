@@ -125,7 +125,7 @@ frack-my/
 The file `webapp/src/config/contracts.ts` contains the deployed contract addresses and ABIs that the app will interact with.
 You will not be modifying this file, unless you are adding new contracts needed for the webapp.
 
-When you interact with `Facking` contract, you will be referencing the `FRACKING_ABI` and `FRACKING_ADDRESS` variables located in the `webapp/src/config/contracts.ts` file.
+When you interact with `Facking` contract, you will be referencing the `YIELD_BOX_ABI` and `FRACKING_ADDRESS` variables located in the `webapp/src/config/contracts.ts` file.
 
 ## Tech Stack
 
