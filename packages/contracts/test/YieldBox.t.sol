@@ -393,7 +393,45 @@ contract YieldBoxTest is Test {
     ///      - Pool connection is established
     ///      - USDCx stream can be created
     ///      - Events are emitted correctly
-    function test_SuperfluidConnectionSetup() public {}
+    function test_SuperfluidConnectionSetup() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
+        e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        
+        // Verify the distribution pool was created during YieldBox deployment
+        ISuperfluidPool pool = yieldBox.distributionPool();
+        assertTrue(address(pool) != address(0), "Pool not initialized");
+        
+        // Verify pool metadata
+        string memory name = pool.name();
+        string memory symbol = pool.symbol();
+        uint8 decimals = pool.decimals();
+        
+        assertEq(name, "YieldBox", "Pool name incorrect");
+        assertEq(symbol, "YBX", "Pool symbol incorrect");
+        assertEq(decimals, 9, "Pool decimals incorrect");
+        
+        // Deposit and connect to pool
+        _depositAndConnect(alice, depositAmount);
+        
+        // Verify alice has units in the pool
+        uint128 aliceUnits = pool.getUnits(alice);
+        assertGt(aliceUnits, 0, "Alice should have units in the pool");
+        
+        // Generate yield and create stream
+        _simulateYield(100e6); // 100 USDC yield
+        vm.warp(block.timestamp + 12 hours);
+        yieldBox.upgradeAll();
+        yieldBox.smother();
+        
+        // Verify stream is created
+        int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(pool));
+        assertGt(flowRate, 0, "No stream created to pool");
+        
+        // Verify user can receive yield
+        vm.warp(block.timestamp + 1 hours);
+        uint256 aliceBalance = yieldToken.balanceOf(alice);
+        assertGt(aliceBalance, 0, "Alice received no yield");
+    }
 
     /// @notice Tests streaming yield to depositors
     /// @dev Should verify:
