@@ -288,7 +288,7 @@ contract YieldBoxTest is Test {
 
         // Start the stream and check the flow rate
         yieldBox.smother();
-        int96 flowRate = yieldBox.yieldToken().getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
+        int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
         
         // Verify yield was properly captured (USDC balance should be close to 0)
         assertApproxEqAbs(usdc.balanceOf(address(yieldBox)), 0, 10, 
@@ -517,7 +517,42 @@ contract YieldBoxTest is Test {
     ///      - System handles zero yield gracefully
     ///      - No streams are created
     ///      - Users can still withdraw principal
-    function test_ZeroYieldScenario() public {}
+    function test_ZeroYieldScenario() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
+        e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
+        
+        // Initial deposit from Alice
+        _depositAndConnect(alice, depositAmount);
+        
+        // Try to harvest with no yield
+        vm.warp(block.timestamp + 12 hours);
+        
+        // Expect revert when trying to upgrade with no yield
+        vm.expectRevert("No yield to upgrade");
+        yieldBox.upgradeAll();
+        
+        // Verify no streams were created
+        int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
+        assertEq(flowRate, 0, "Stream should not be created with zero yield");
+        
+        // Verify latent yield is zero
+        assertEq(F.unwrap(yieldBox.latentYield()), 0, "Latent yield should be zero");
+        
+        // Verify user can still withdraw principal
+        e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
+        
+        _withdraw(alice, A.to18(depositAmount));
+        
+        // Verify USDC was returned to Alice
+        assertEq(usdc.balanceOf(alice), aliceInitialBalance.value + depositAmount.value, 
+                "Alice should receive full principal back");
+        
+        // Verify Alice's share balance is zero
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), 0, "Alice should have 0 shares after withdrawal");
+        
+        // Verify total deposited assets is zero
+        assertEq(F.unwrap(yieldBox.totalDepositedAssets()), 0, "Total deposited assets should be 0");
+    }
 
     /// @notice Tests deposit limits and constraints
     /// @dev Should verify:
