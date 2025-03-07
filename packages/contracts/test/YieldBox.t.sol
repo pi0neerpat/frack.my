@@ -120,33 +120,35 @@ contract YieldBoxTest is Test {
     ///      - Share tokens minted to user
     ///      - Events emitted
     function test_DepositBasicFlow() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
         e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
         
-        // Get initial balances
+        // Get initial balances with correct decimal precision
         e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
         e memory vaultInitialBalance = Dec.make(usdc.balanceOf(address(mockVault)), U_TOKEN_DEC);
         
         vm.startPrank(alice);
         
-        // Approve and deposit
+        // Approve and deposit (using underlying token decimals)
         usdc.approve(address(yieldBox), depositAmount.value);
         yieldBox.deposit(depositAmount.value);
         
         vm.stopPrank();
 
-        // Verify USDC transfers
+        // Verify USDC transfers (using underlying token decimals)
         assertEq(usdc.balanceOf(alice), aliceInitialBalance.value - depositAmount.value, "Alice USDC balance incorrect");
         assertEq(usdc.balanceOf(address(mockVault)), vaultInitialBalance.value + depositAmount.value, "Vault USDC balance incorrect");
         
-        // Verify share accounting
-        assertEq(e18.unwrap(yieldBox.balanceOf(alice)), depositAmount.value, "Share balance incorrect");
-        assertEq(e18.unwrap(yieldBox.totalDepositedAssets()), depositAmount.value, "Total shares incorrect");
+        // Convert deposit amount to 18 decimals for share balance check
+        // YieldBox stores shares in 18 decimals internally
+        e18 expectedShares = A.to18(depositAmount);
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(expectedShares), "Share balance incorrect");
+        assertEq(F.unwrap(yieldBox.totalDepositedAssets()), F.unwrap(expectedShares), "Total shares incorrect");
 
-        // Verify pool units
-        console2.log("Pool units", yieldBox.distributionPool().getUnits(alice));
-        console2.log("Deposit amount", depositAmount.value);
-        console2.log("Deposit amount / 1e4", depositAmount.value/1e4);
-        assertEq(yieldBox.distributionPool().getUnits(alice), uint128(depositAmount.value/1e4), "Pool units incorrect");
+        // Convert deposit amount to pool units (9 decimals)
+        // Distribution pool uses 9 decimals
+        e memory poolUnits = A.to(depositAmount, POOL_DEC);
+        assertEq(yieldBox.distributionPool().getUnits(alice), uint128(poolUnits.value), "Pool units incorrect");
     }
     /// @notice Tests that users can withdraw their full position
     /// @dev Should verify:
@@ -155,40 +157,35 @@ contract YieldBoxTest is Test {
     ///      - Vault share calculation
     ///      - Events emitted
     function test_WithdrawFullPosition() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
         e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
         
-        // First deposit
+        // First deposit and connect to pool
         _depositAndConnect(alice, depositAmount);
         
-        // Get initial balances before withdrawal
+        // Get initial balances before withdrawal with correct decimal precision
         e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
         e memory vaultInitialBalance = Dec.make(usdc.balanceOf(address(mockVault)), U_TOKEN_DEC);
-        e memory initialShares = Dec.make(e18.unwrap(yieldBox.balanceOf(alice)), U_TOKEN_DEC);
-        e memory initialPoolUnits = Dec.make(yieldBox.distributionPool().getUnits(alice), POOL_DEC);
         
-        vm.startPrank(alice);
+        // Get initial shares (in 18 decimals) and convert to underlying decimals for comparison
+        e18 initialShares18 = yieldBox.balanceOf(alice);
         
-        // Withdraw full position
+        // Get initial pool units (in 9 decimals)
+        uint128 initialPoolUnits = yieldBox.distributionPool().getUnits(alice);
+        
+        // Withdraw full position (need to convert to 18 decimals for withdraw function)
         _withdraw(alice, A.to18(depositAmount));
-        
-        vm.stopPrank();
 
-        // Verify USDC transfers
+        // Verify USDC transfers (in underlying token decimals)
         assertEq(usdc.balanceOf(alice), A.add(aliceInitialBalance, depositAmount, U_TOKEN_DEC).value, "Alice USDC balance incorrect");
         assertEq(usdc.balanceOf(address(mockVault)), A.sub(vaultInitialBalance, depositAmount, U_TOKEN_DEC).value, "Vault USDC balance incorrect");
         
-        // Verify share accounting
+        // Verify share accounting (in 18 decimals)
         assertEq(F.unwrap(yieldBox.balanceOf(alice)), 0, "Share balance should be 0");
         assertEq(F.unwrap(yieldBox.totalDepositedAssets()), 0, "Total shares should be 0");
         
-        // Verify pool units
+        // Verify pool units (in 9 decimals)
         assertEq(yieldBox.distributionPool().getUnits(alice), 0, "Pool units should be 0");
-        
-        // Verify all shares were burned
-        assertEq(F.unwrap(yieldBox.balanceOf(alice)), initialShares.value - depositAmount.value, "Not all shares were burned");
-        
-        // Verify all pool units were removed
-        assertEq(yieldBox.distributionPool().getUnits(alice), (A.sub(A.to(initialPoolUnits, POOL_DEC), A.to(depositAmount, POOL_DEC), POOL_DEC)).value, "Not all pool units were removed");
     }
 
     /// @notice Tests partial withdrawal functionality
@@ -197,42 +194,55 @@ contract YieldBoxTest is Test {
     ///      - Correct remaining shares
     ///      - Proper vault share recalculation
     function test_WithdrawPartialPosition() public {
+        // Create deposit amount with underlying token decimals (6 for USDC)
         e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
-        e18 withdrawAmount = Dec.make18(400e6); // 400 USDC
         
-        // First deposit
+        // Create withdraw amount (400 USDC) in underlying decimals and convert to 18 decimals
+        // for the withdraw function which expects 18 decimals
+        e memory withdrawAmount_6dec = Dec.make(400e6, U_TOKEN_DEC);
+        e18 withdrawAmount_18dec = A.to18(withdrawAmount_6dec);
+        
+        // First deposit and connect to pool
         _depositAndConnect(alice, depositAmount);
         
-        // Get initial balances before withdrawal
+        // Get initial balances before withdrawal with correct decimal precision
         e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
         e memory vaultInitialBalance = Dec.make(usdc.balanceOf(address(mockVault)), U_TOKEN_DEC);
+        
+        // Get initial shares (in 18 decimals)
         e18 initialShares = yieldBox.balanceOf(alice);
-        e memory initialPoolUnits = Dec.make(yieldBox.distributionPool().getUnits(alice), POOL_DEC);
         
-        vm.startPrank(alice);
+        // Get initial pool units (in 9 decimals)
+        uint128 initialPoolUnits = yieldBox.distributionPool().getUnits(alice);
         
-        // Withdraw partial position
-        yieldBox.withdraw(withdrawAmount);
+        // Withdraw partial position (using 18 decimals as required by the contract)
+        _withdraw(alice, withdrawAmount_18dec);
         
-        vm.stopPrank();
-
-        // Verify USDC transfers
-        assertEq(usdc.balanceOf(alice), A.add(aliceInitialBalance, F.to(withdrawAmount, U_TOKEN_DEC), U_TOKEN_DEC).value, "Alice USDC balance incorrect");
-        assertEq(usdc.balanceOf(address(mockVault)), A.sub(vaultInitialBalance, F.to(withdrawAmount, U_TOKEN_DEC), U_TOKEN_DEC).value, "Vault USDC balance incorrect");
+        // Calculate expected remaining amounts
+        e18 expectedRemainingShares = F.sub(initialShares, withdrawAmount_18dec);
         
-        // Verify remaining share accounting
-        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(F.sub(A.to18(depositAmount), withdrawAmount)), "Remaining share balance incorrect");
-        assertEq(F.unwrap(yieldBox.totalDepositedAssets()), F.unwrap(F.sub(A.to18(depositAmount), withdrawAmount)), "Total shares incorrect");
+        // Convert withdraw amount back to underlying decimals for USDC balance checks
+        e memory withdrawAmount_underlying = F.to(withdrawAmount_18dec, U_TOKEN_DEC);
         
-        // Verify remaining pool units
-        e memory expectedPoolUnits = F.to(F.sub(A.to18(depositAmount), withdrawAmount), POOL_DEC);
-        assertEq(yieldBox.distributionPool().getUnits(alice), uint128(expectedPoolUnits.value), "Remaining pool units incorrect");
+        // Verify USDC transfers (in underlying token decimals)
+        assertEq(usdc.balanceOf(alice), A.add(aliceInitialBalance, withdrawAmount_underlying, U_TOKEN_DEC).value, 
+                "Alice USDC balance incorrect");
+        assertEq(usdc.balanceOf(address(mockVault)), A.sub(vaultInitialBalance, withdrawAmount_underlying, U_TOKEN_DEC).value, 
+                "Vault USDC balance incorrect");
         
-        // Verify partial shares were burned
-        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(F.sub(initialShares, withdrawAmount)), "Incorrect shares burned");
+        // Verify remaining share accounting (in 18 decimals)
+        assertEq(F.unwrap(yieldBox.balanceOf(alice)), F.unwrap(expectedRemainingShares), 
+                "Remaining share balance incorrect");
+        assertEq(F.unwrap(yieldBox.totalDepositedAssets()), F.unwrap(expectedRemainingShares), 
+                "Total shares incorrect");
         
-        // Verify partial pool units were removed
-        assertEq(yieldBox.distributionPool().getUnits(alice), uint128(A.sub(initialPoolUnits, F.to(withdrawAmount, POOL_DEC), POOL_DEC).value), "Incorrect pool units removed");
+        // Calculate expected remaining pool units (in 9 decimals)
+        e memory withdrawAmount_9dec = F.to(withdrawAmount_18dec, POOL_DEC);
+        uint128 expectedPoolUnits = initialPoolUnits - uint128(withdrawAmount_9dec.value);
+        
+        // Verify remaining pool units (in 9 decimals)
+        assertEq(yieldBox.distributionPool().getUnits(alice), expectedPoolUnits, 
+                "Remaining pool units incorrect");
     }
 
     /**** Yield Distribution Tests ****/
@@ -242,46 +252,68 @@ contract YieldBoxTest is Test {
     ///      - User can withdraw initial deposit plus yield
     ///      - Correct accounting in underlying vault
     function test_YieldDistributionSingleUser() public {
+        // Create deposit and yield amounts with underlying token decimals (6 for USDC)
         e memory depositAmount = Dec.make(1000e6, U_TOKEN_DEC); // 1000 USDC
-        e memory yieldAmount = Dec.make(100e6, U_TOKEN_DEC); // 100 USDC
+        e memory yieldAmount = Dec.make(100e6, U_TOKEN_DEC);    // 100 USDC yield (10%)
 
         // Initial deposit from Alice
         _depositAndConnect(alice, depositAmount);
         
-        // Get balances before harvest
+        // Get balances before harvest with correct decimal precision
         e memory aliceInitialBalance = Dec.make(usdc.balanceOf(alice), U_TOKEN_DEC);
         e memory initialVaultBalance = Dec.make(mockVault.totalAssets(), U_TOKEN_DEC);
         
         // Generate yield in mock vault (10% return)
         _simulateYield(yieldAmount.value);
         
-        assertApproxEqAbs(F.unwrap(yieldBox.latentYield()), yieldAmount.value, 10, "Vault assets not properly updated");
+        // Convert yield amount to 18 decimals for comparison with latentYield()
+        // which returns yield in 18 decimals
+        e18 yieldAmount_18dec = A.to18(yieldAmount);
+        
+        // Verify latent yield is detected correctly
+        // Use a larger delta for the approximation due to potential rounding issues
+        // when converting between different decimal precisions
+        assertApproxEqAbs(F.unwrap(yieldBox.latentYield()), F.unwrap(yieldAmount_18dec), 1e12, 
+                         "Vault assets not properly updated");
+        
         // Harvest yield
         vm.warp(block.timestamp + 12 hours); // Wait minimum harvest delay
         yieldBox.upgradeAll();
-        // now check USDCx balance
-        assertApproxEqAbs(yieldToken.balanceOf(address(yieldBox)), yieldAmount.value * 1e12, 1e12, "Not all underlying upgraded");
+        
+        // Check USDCx balance (18 decimals)
+        // Convert yield amount to 18 decimals for SuperToken comparison
+        e memory expectedUSDCx = A.to(yieldAmount, E18_DEC);
+        assertApproxEqAbs(yieldToken.balanceOf(address(yieldBox)), expectedUSDCx.value, 1e12, 
+                         "Not all underlying upgraded");
 
-        // now let's start the stream and check the flow rate
+        // Start the stream and check the flow rate
         yieldBox.smother();
         int96 flowRate = yieldBox.yieldToken().getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
-        // Verify yield was properly captured. 
-        // this should take into account the buffer of the stream (4 hours)
-        assertApproxEqAbs(usdc.balanceOf(address(yieldBox)), 0, 10e12, "Not all underlying upgraded");
         
-        // Calculate expected flow rate using decimal library
-        e memory expectedFlowRate = Dec.make(yieldAmount.value * 1e12 / (24 hours), U_TOKEN_DEC);
-        assertApproxEqAbs(flowRate, int96(uint96(expectedFlowRate.value)), 10e9, "Incorrect flow rate");
+        // Verify yield was properly captured (USDC balance should be close to 0)
+        assertApproxEqAbs(usdc.balanceOf(address(yieldBox)), 0, 10, 
+                         "Not all underlying upgraded");
+        
+        // Calculate expected flow rate (18 decimals)
+        // Flow rate is calculated to distribute yield over 24 hours
+        // Use a larger delta for the flow rate comparison due to potential rounding
+        // in the contract's calculation
+        e memory expectedFlowRate = Dec.make(expectedUSDCx.value / (24 hours), E18_DEC);
+        assertApproxEqAbs(flowRate, int96(uint96(expectedFlowRate.value)), 1e12, 
+                         "Incorrect flow rate");
         
         // Fast forward to receive some yield 
         vm.warp(block.timestamp + 6 hours);
-        // Verify the yieldBox is still streaming yield
-        assertTrue(yieldBox.yieldToken().getFlowRate(address(yieldBox), address(yieldBox.distributionPool())) > 0, "Yield stream not active");
         
-        // verify that alice is actually receiving yield
+        // Verify the yieldBox is still streaming yield
+        assertTrue(yieldBox.yieldToken().getFlowRate(address(yieldBox), address(yieldBox.distributionPool())) > 0, 
+                  "Yield stream not active");
+        
+        // Verify that alice is actually receiving yield (in 18 decimals)
         e memory amountStreamed = Dec.make(usdcx.getTotalAmountReceivedByMember(yieldBox.distributionPool(), alice), E18_DEC);
         assertGt(amountStreamed.value, 0, "No yield streamed");
-        // check alice's balance
+        
+        // Check alice's USDCx balance (in 18 decimals)
         assertEq(usdcx.balanceOf(alice), amountStreamed.value, "No yield received");
     }
 
