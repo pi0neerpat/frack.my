@@ -423,7 +423,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
         <CardHeader>
           <CardTitle>Deposit {asset.name}</CardTitle>
           <CardDescription>
-            Build a new drill using {asset.name} as fracking fluid
+            Start fracking with {asset.name} 
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -86,6 +86,14 @@ export function WithdrawForm({ assetType, drillId }: WithdrawFormProps) {
     : 0;
   const minAmount = 0.000001; // Minimum withdrawal amount
 
+  // Initialize amount when maxAmount is available
+  useEffect(() => {
+    if (maxAmount > 0) {
+      // Set initial amount to 100% of maxAmount (since sliderValue defaults to 100)
+      setAmount(maxAmount.toFixed(6));
+    }
+  }, [maxAmount]);
+
   // Update amount when slider changes
   const handleSliderChange = (value: number[]) => {
     const percentage = value[0];

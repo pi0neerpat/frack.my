@@ -3,6 +3,8 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { WithdrawForm } from "@/components/withdraw/withdraw-form";
+import Image from "next/image";
+import { FLUIDS } from "@/config/fluids";
 
 export default function WithdrawPage() {
   const params = useParams();
@@ -12,6 +14,11 @@ export default function WithdrawPage() {
   // For now, we'll just extract the asset type from the drill ID
   // Assuming drill IDs are in the format "assetType-uniqueId"
   const assetType = drillId.split("-")[0];
+
+  // Find the asset in our fluids list
+  const asset = FLUIDS.find(
+    (fluid) => fluid.id.toLowerCase() === assetType.toLowerCase()
+  );
 
   return (
     <div className="container mx-auto py-8">
@@ -23,17 +30,34 @@ export default function WithdrawPage() {
           <WithdrawForm assetType={assetType} drillId={drillId} />
         </div>
 
-        {/* Right column: Animation */}
+        {/* Right column: Animation - Matching the deposit page style */}
         <div className="flex items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4">
-              <div className="w-64 h-64 bg-red-900/30 rounded-full flex items-center justify-center">
-                <span className="text-4xl">🛢️</span>
+          <div className="flex flex-col items-center space-y-6">
+            <div className="relative w-96 h-96 bg-purple-900/20 rounded-lg overflow-hidden flex items-center justify-center">
+              {/* Oil rig image */}
+              <div className="relative w-full h-full flex items-center justify-center">
+                {/* New rig image */}
+                <div className="absolute inset-0 w-full h-full">
+                  <Image
+                    src="/images/withdraw.png"
+                    alt="Oil Rig"
+                    fill
+                    className="object-contain p-4"
+                    priority
+                  />
+                </div>
               </div>
             </div>
-            <p className="text-lg">
-              Shutting down this drill will return your assets to your wallet
-            </p>
+
+            <div className="text-center">
+              <h3 className="text-xl font-bold mb-2">
+                Shutting Down {asset?.name || assetType.toUpperCase()} Drill
+              </h3>
+              <p className="text-muted-foreground max-w-md">
+                Your assets will be returned to your wallet when you shut down
+                this drill. Any unclaimed yield will be harvested automatically.
+              </p>
+            </div>
           </div>
         </div>
       </div>

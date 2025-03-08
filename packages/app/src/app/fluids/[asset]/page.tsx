@@ -30,7 +30,7 @@ export default function DepositPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Build a New Drill</h1>
+        <h1 className="text-3xl font-bold">Start Fracking</h1>
         <Link href={`/vaults/${assetType}/stats`} passHref>
           <Button variant="outline" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
