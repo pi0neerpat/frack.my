@@ -8,6 +8,7 @@ import {
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
+  usePublicClient,
 } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { Loader2 } from "lucide-react";
 import { YIELD_BOX_ABI, FRACKING_ADDRESS, ERC20_ABI } from "@/config/contracts";
 import { FLUIDS } from "@/config/fluids";
 import { formatCurrency } from "@/lib/utils";
+import { gdav1Forwarder } from "@/lib/contracts/GDAv1Forwarder";
 
 // Success animation component
 const SuccessAnimation = ({ onComplete }: { onComplete: () => void }) => {
@@ -62,6 +64,12 @@ export function DepositForm({ assetType }: DepositFormProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [justApproved, setJustApproved] = useState(false);
+
+  const publicClient = usePublicClient();
+  const [poolAddress, setPoolAddress] = useState<string | null>(null);
+  const [isConnectingPool, setIsConnectingPool] = useState(false);
+  const [connectPoolError, setConnectPoolError] = useState<string | null>(null);
+  const [connectPoolSuccess, setConnectPoolSuccess] = useState(false);
 
   // Get asset information
   const asset = FLUIDS.find(
@@ -380,6 +388,106 @@ export function DepositForm({ assetType }: DepositFormProps) {
     }
   };
 
+  // Fetch the distribution pool address
+  useEffect(() => {
+    const fetchPoolAddress = async () => {
+      if (!vaultAddressToUse || !publicClient) return;
+
+      try {
+        const pool = await publicClient.readContract({
+          address: vaultAddressToUse,
+          abi: YIELD_BOX_ABI,
+          functionName: "poolAddress",
+        });
+
+        setPoolAddress(pool as string);
+        console.log("Distribution pool address:", pool);
+      } catch (error) {
+        console.error("Error fetching pool address:", error);
+      }
+    };
+
+    fetchPoolAddress();
+  }, [vaultAddressToUse, publicClient]);
+
+  // Write contract for connecting to the pool
+  const {
+    writeContract: writeConnectPool,
+    data: connectPoolHash,
+    isPending: isConnectPoolPending,
+    isError: isConnectPoolError,
+    error: connectPoolErrorData,
+  } = useWriteContract();
+
+  // Wait for connect pool transaction
+  const { isLoading: isConnectPoolLoading, isSuccess: isConnectPoolSuccess } =
+    useWaitForTransactionReceipt({
+      hash: connectPoolHash,
+    });
+
+  // Effect to handle connect pool errors
+  useEffect(() => {
+    if (isConnectPoolError && connectPoolErrorData) {
+      console.error("Connect pool error:", connectPoolErrorData);
+      setConnectPoolError(
+        `Failed to connect to pool: ${connectPoolErrorData.message}`
+      );
+    }
+  }, [isConnectPoolError, connectPoolErrorData]);
+
+  // Effect to handle connect pool success
+  useEffect(() => {
+    if (isConnectPoolSuccess) {
+      console.log("Connect pool transaction successful");
+      setConnectPoolSuccess(true);
+      setShowSuccess(true);
+    }
+  }, [isConnectPoolSuccess]);
+
+  // Handle connect to pool
+  const handleConnectPool = async () => {
+    if (!address || !poolAddress || !asset) return;
+
+    setConnectPoolError(null);
+    setIsConnectingPool(true);
+
+    try {
+      console.log("Connecting to pool:", {
+        forwarderAddress: gdav1Forwarder.address,
+        poolAddress: poolAddress,
+      });
+
+      writeConnectPool({
+        address: gdav1Forwarder.address,
+        abi: gdav1Forwarder.abi,
+        functionName: "connectPool",
+        args: [
+          asset.vaultAddress as `0x${string}`,
+          poolAddress as `0x${string}`,
+          "0x",
+        ],
+      });
+    } catch (error) {
+      console.error("Connect pool error:", error);
+      setConnectPoolError("Failed to connect to pool. Please try again.");
+      setIsConnectingPool(false);
+    }
+  };
+
+  // Modified deposit success handler to connect to pool after deposit
+  useEffect(() => {
+    if (
+      isDepositSuccess &&
+      poolAddress &&
+      !connectPoolSuccess &&
+      !isConnectingPool
+    ) {
+      console.log("Deposit successful, connecting to pool...");
+      handleConnectPool();
+    }
+  }, [isDepositSuccess, poolAddress, connectPoolSuccess, isConnectingPool]);
+
+  // Update the handleSuccessComplete function
   const handleSuccessComplete = () => {
     router.push("/");
   };
@@ -427,12 +535,46 @@ export function DepositForm({ assetType }: DepositFormProps) {
     <>
       {showSuccess && <SuccessAnimation onComplete={handleSuccessComplete} />}
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle>Deposit {asset.name}</CardTitle>
-          <CardDescription>Start fracking with {asset.name}</CardDescription>
+          <CardTitle>Build a New Drill</CardTitle>
+          <CardDescription>
+            Deposit {asset?.name} to start earning yield
+          </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Error display */}
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Connect pool error display */}
+          {connectPoolError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{connectPoolError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Connect pool status */}
+          {isConnectingPool && !connectPoolSuccess && (
+            <Alert className="mb-4 bg-blue-50 border-blue-200">
+              <AlertDescription className="flex items-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Connecting to distribution pool...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {connectPoolSuccess && (
+            <Alert className="mb-4 bg-green-50 border-green-200">
+              <AlertDescription className="text-green-700">
+                Successfully connected to distribution pool!
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-6">
             <div>
               <Label htmlFor="amount" className="mb-2 block">
@@ -565,12 +707,6 @@ export function DepositForm({ assetType }: DepositFormProps) {
                   </div>
                 )}
               </div>
-            )}
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
             )}
           </div>
         </CardContent>
