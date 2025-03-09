@@ -65,6 +65,14 @@ library F {
         return e18.wrap(e18.unwrap(a) - e18.unwrap(b));
     }
 
+    function mul(e18 a, e18 b) internal pure returns (e18) {
+        return e18.wrap(e18.unwrap(a) * e18.unwrap(b));
+    }
+
+    function div(e18 a, e18 b) internal pure returns (e18) {
+        return e18.wrap(e18.unwrap(a) / e18.unwrap(b));
+    }
+
     function to(e18 self, decimal d) internal pure returns (e memory) {
         uint8 targetDecimals = decimal.unwrap(d);
         if (targetDecimals > 18) {
@@ -83,6 +91,10 @@ library F {
 
     function gte(e18 a, e18 b) internal pure returns (bool) {
         return e18.unwrap(a) >= e18.unwrap(b);
+    }
+
+    function eq(e18 a, e18 b) internal pure returns (bool) {
+        return e18.unwrap(a) == e18.unwrap(b);
     }
 
     function div(e18 self, uint256 scalar) internal pure returns (e18) {
@@ -122,6 +134,12 @@ library A {
         return add(a, b, Dec.d(18));
     }
 
+    function add(e memory a, e memory b) internal pure returns (e memory) {
+        // check if a and b have the same decimal
+        require(decimal.unwrap(a.decimals) == decimal.unwrap(b.decimals), "Decimal mismatch");
+        return add(a, b, a.decimals);
+    }
+
     function add(e memory a, e memory b, decimal d) internal pure returns (e memory) {
         // Convert both e types to the same decimal, then add
         e memory aConverted = to(a, d);
@@ -134,6 +152,32 @@ library A {
         e memory aConverted = to(a, d);
         e memory bConverted = to(b, d);
         return e(aConverted.value - bConverted.value, d);
+    }
+
+    function mul(e memory a, e memory b) internal pure returns (e memory) {
+        // check if a and b have the same decimal
+        require(decimal.unwrap(a.decimals) == decimal.unwrap(b.decimals), "Decimal mismatch");
+        return mul(a, b, a.decimals);
+    }
+
+    function mul(e memory a, e memory b, decimal d) internal pure returns (e memory) {
+        // Convert both e types to the same decimal, then multiply
+        e memory aConverted = to(a, d);
+        e memory bConverted = to(b, d);
+        return e(aConverted.value * bConverted.value, d);
+    }
+
+    function div(e memory a, e memory b) internal pure returns (e memory) {
+        // check if a and b have the same decimal
+        require(decimal.unwrap(a.decimals) == decimal.unwrap(b.decimals), "Decimal mismatch");
+        return div(a, b, a.decimals);
+    }
+
+    function div(e memory a, e memory b, decimal d) internal pure returns (e memory) {
+        // Convert both e types to the same decimal, then divide
+        e memory aConverted = to(a, d);
+        e memory bConverted = to(b, d);
+        return e(aConverted.value / bConverted.value, d);
     }
 
     function subTo18(e memory a, e memory b) internal pure returns (e memory) {
