@@ -30,14 +30,19 @@ abstract contract YieldBoxBase is IYieldBox {
     
     // Protocol parameters
     uint256 public constant MINIMUM_DEPOSIT = 1e6;
-    e18 public constant HARVEST_DELAY = e18.wrap(12 hours);
+    e18 public constant HARVEST_DELAY = e18.wrap(6 hours);
     uint256 public lastHarvestTimestamp;
-    
+    address public feeRecipient;
+
     // Decimal precisions as type-safe decimal values
     decimal public immutable U_TOKEN_DEC;
     decimal public immutable U_VAULT_DEC;
     decimal public immutable POOL_DEC;
     decimal public immutable E18_DEC = uint(18).d();
+
+    // Add a configurable fee percentage constant
+    uint256 public constant FEE_PERCENTAGE_BASIS_POINTS = 500; // 5% = 500 basis points
+    uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
 
     constructor(
         address _underlyingVault, 
@@ -46,6 +51,7 @@ abstract contract YieldBoxBase is IYieldBox {
         string memory _symbol, 
         uint8 _poolDecimals
     ) {
+        feeRecipient = msg.sender;
         require(_underlyingVault != address(0), "Invalid vault address");
         underlyingVault = IERC4626(_underlyingVault);
         underlyingToken = IERC20Metadata(underlyingVault.asset());
@@ -59,6 +65,12 @@ abstract contract YieldBoxBase is IYieldBox {
         // Setup approvals and pool
         _setupApprovals();
         distributionPool = _setupDistributionPool(_name, _symbol, _poolDecimals);
+    }
+
+    function setFeeRecipient(address _feeRecipient) external {
+        require(msg.sender == feeRecipient, "Only fee recipient can set a new fee recipient");
+        require(_feeRecipient != address(0), "Invalid fee recipient address");
+        feeRecipient = _feeRecipient;
     }
 
     // Virtual function for setting up token approvals
@@ -196,14 +208,15 @@ abstract contract YieldBoxBase is IYieldBox {
         // Execute the harvest steps
         _withdrawYield(yieldAmount);
         _convertYield();
-        _upgradeYield();
+        e18 upgradedYield = _upgradeYield();
+        e18 feeAmount = _payHarvestFee(upgradedYield);
         int96 flowRate = _distributeYield();
         
-        // Use the actual balance for the event
-        emit HarvestYield(yieldToken.balanceOf(address(this)));
+        // Use remaining yield instead of total balance for distribution
+        emit HarvestYield(yieldToken.balanceOf(address(this)), flowRate);
         
         // Return the yield amount
-        return yieldAmount;
+        return A.sub(yieldAmount, F.to(feeAmount, U_TOKEN_DEC), U_TOKEN_DEC);
     }
 
     // Calculate available yield
@@ -237,7 +250,7 @@ abstract contract YieldBoxBase is IYieldBox {
     }
 
     // Upgrade yield tokens to SuperTokens
-    function _upgradeYield() internal virtual {
+    function _upgradeYield() internal virtual returns (e18 yieldAmount) {
         // Get balance of the yield token's underlying token
         IERC20 underlyingYieldToken = IERC20(yieldToken.getUnderlyingToken());
         e memory balance = Dec.make(underlyingYieldToken.balanceOf(address(this)), U_TOKEN_DEC);
@@ -246,18 +259,34 @@ abstract contract YieldBoxBase is IYieldBox {
             // Upgrade all available tokens
             yieldToken.upgrade(F.unwrap(A.to18(balance)));
         }
+        return A.to18(balance);
+    }
+
+    function _payHarvestFee(e18 harvestedYield) internal virtual returns (e18) {
+        // Calculate fee amount (5% of yield) using basis points for precision
+        e18 feeAmount = F.wrap(F.unwrap(harvestedYield) * FEE_PERCENTAGE_BASIS_POINTS / BASIS_POINTS_DENOMINATOR);
+        
+        // Transfer fee to recipient if non-zero
+        if (F.gt(feeAmount, Dec.make18(0))) {
+            yieldToken.transfer(feeRecipient, F.unwrap(feeAmount));
+            emit FeePaid(feeRecipient, F.unwrap(feeAmount));
+        }
+        return feeAmount;
     }
 
     function adjustFlow() external returns (int96 flowRate) {
+        // get the available yield in 18 decimals which is the same as the total balance
         return _distributeYield();
     }
     // Distribute yield via Superfluid stream
     function _distributeYield() internal returns (int96 actualFlowRate) {
-        // Get current SuperToken balance
+        // Use the passed yield amount for distribution
         uint256 balance = yieldToken.balanceOf(address(this));
+
+        console.log("yieldToDistribute: ", balance);
         if (balance > 0) {
             // Calculate flow rate based on harvest delay
-            uint256 flowRate256 =  balance / (F.unwrap(HARVEST_DELAY) * 2);
+            uint256 flowRate256 = balance / 24 hours;
             int96 flowRate;
             if(flowRate256 > uint256(int256(type(int96).max))){
                 flowRate = type(int96).max;

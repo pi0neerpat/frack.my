@@ -38,6 +38,8 @@ contract YieldBoxTest is Test {
 
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
+    address admin = makeAddr("admin");
+
     
     IERC20 usdc = IERC20(USDC_ADDRESS);
     ISuperToken usdcx = ISuperToken(USDCx_ADDRESS);
@@ -56,6 +58,7 @@ contract YieldBoxTest is Test {
         mockVault = new Mock4626(usdc);
         
         // Deploy YieldBox with the new constructor arguments
+        vm.prank(admin);
         yieldBox = new YieldBoxUSDC(
             address(mockVault),
             USDCx_ADDRESS,
@@ -63,7 +66,7 @@ contract YieldBoxTest is Test {
             "YBX",             // Pool symbol
             6                 // Pool decimals (assuming 9 is correct)
         );
-        
+    
         // Fund test users with USDC
         deal(USDC_ADDRESS, alice, 10000e6);
         deal(USDC_ADDRESS, bob, 10000e6);
@@ -291,7 +294,7 @@ contract YieldBoxTest is Test {
         int96 flowRate = yieldBox.adjustFlow();
         // Check USDCx balance (18 decimals)
         // Convert yield amount to 18 decimals for SuperToken comparison
-        e18 expectedUSDCx = A.to18(yieldAmount);
+        e18 expectedUSDCx = A.to18(Dec.make(yieldAmount.value /20 *19, U_TOKEN_DEC)); // this is already net of the fee
         assertApproxEqAbs(yieldToken.balanceOf(address(yieldBox)) - initialUSDCxBalance, F.unwrap(expectedUSDCx) - uint256(uint96(flowRate)) * 4 hours, 3e12, 
                          "Not all underlying upgraded");
 
@@ -460,14 +463,14 @@ contract YieldBoxTest is Test {
         e memory harvestedYield = yieldBox.harvest();
         
         // Verify harvested yield matches expected yield (in underlying decimals)
-        assertApproxEqAbs(harvestedYield.value, yieldAmount.value, 1e3, 
+        assertApproxEqAbs(harvestedYield.value, yieldAmount.value /20*19, 1e3, 
                          "Incorrect harvested yield amount");
         
         // Check USDCx balance after harvest
         uint256 afterHarvestBalance = yieldToken.balanceOf(address(yieldBox));
         
         // Convert expected yield to 18 decimals for SuperToken comparison
-        e memory expectedYield18 = A.to(yieldAmount, E18_DEC);
+        e memory expectedYield18 = A.to(Dec.make(harvestedYield.value, U_TOKEN_DEC), E18_DEC);
         
         // Get the flow rate after harvest
         int96 flowRate = yieldToken.getFlowRate(address(yieldBox), address(yieldBox.distributionPool()));
@@ -516,7 +519,7 @@ contract YieldBoxTest is Test {
         
         // Verify users received the full yield amount (with 10% tolerance)
         e memory totalFinalStreamed = Dec.make(aliceFinalStreamed.value + bobFinalStreamed.value, E18_DEC);
-        uint256 tenPercentOfTotal = expectedYield18.value / 10;
+        uint256 tenPercentOfTotal = expectedYield18.value / 10; // 5% fee + 4hr deposit? 
         assertApproxEqAbs(totalFinalStreamed.value, expectedYield18.value, tenPercentOfTotal, 
                          "Full yield amount not distributed");
     }
@@ -878,6 +881,7 @@ contract YieldBoxTest is Test {
     // make sure invariants are maintained for each user, and that no user can affect another user's balance
     function testFuzz_DepositWithdrawMultipleUsers(uint256[20] memory depositAmountRaw, uint256[20] memory withdrawAmountRaw, uint256 NRaw) public {
         // Bound N to reasonable range (between 2 and 10)
+        e memory totalYield = Dec.make(0, U_TOKEN_DEC);
         uint256 N = bound(NRaw, 2, 20);
         console.log("N: ", N);
         // Create multiple users
@@ -907,9 +911,10 @@ contract YieldBoxTest is Test {
             assertEq(yieldBox.distributionPool().getUnits(users[i]), uint128(depositAmount[i].value), "Pool units incorrect");
         }
         
-        e memory yieldAmount = Dec.make(totalDepositedUnderlying.value / N, U_TOKEN_DEC);
+        e memory yieldAmount = Dec.make(totalDepositedUnderlying.value / N / 10, U_TOKEN_DEC);
         // Generate yield and start streaming
-        _simulateYield(yieldAmount.value /10);
+        _simulateYield(yieldAmount.value);
+        totalYield = A.add(totalYield, yieldAmount);
         vm.warp(block.timestamp + 12 hours);
         yieldBox.harvest();
 
@@ -986,17 +991,18 @@ contract YieldBoxTest is Test {
         }
 
         // Generate more yield and verify stream continues
-        _simulateYield(yieldAmount.value / 10);
+        _simulateYield(yieldAmount.value);
         vm.warp(block.timestamp + 12 hours);
         yieldBox.harvest();
-
+        totalYield = A.add(totalYield, yieldAmount);
         // Verify stream rate is still positive
         int96 flowRate = yieldToken.getFlowRate(
             address(yieldBox),
             address(yieldBox.distributionPool())
         );
         assertGt(flowRate, 0, "Stream should still be flowing");
-        
+        // check that the right amount of fees was paid 
+        assertApproxEqAbs(yieldToken.balanceOf(admin), totalYield.value*1e12 /20, 1e12, "Fees paid incorrect");
     }
         
         // Withdraw depositAmount from each user
@@ -1235,6 +1241,8 @@ contract YieldBoxTest is Test {
             1e12, 
             "Total assets incorrect"
         );
+
+
     }
 }
 

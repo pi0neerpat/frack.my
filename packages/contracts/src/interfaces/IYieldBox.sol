@@ -15,9 +15,10 @@ interface IYieldBox {
     // Events
     event Deposit(address indexed user, uint256 assets18);
     event Withdraw(address indexed user, uint256 assets18);
-    event HarvestYield(uint256 yieldAmount18);
+    event HarvestYield(uint256 yieldAmount18, int96 flowRate);
     event StreamUpdated(address indexed user, int96 flowRate);
     event YieldConverted(uint256 fromAmount, uint256 toAmount);
+    event FeePaid(address indexed recipient, uint256 amount);
 
     // View functions
     function underlyingVault() external view returns (IERC4626);
@@ -38,6 +39,7 @@ interface IYieldBox {
     function availableYield() external view returns (e18);
 
     // State-changing functions
+    function setFeeRecipient(address feeRecipient) external;
     function deposit(uint256 assets) external;
     function depositFor(address user) external;
     function withdraw(e18 amount) external;
