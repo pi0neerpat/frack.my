@@ -24,32 +24,76 @@ interface Drill {
   totalEarned: number;
   startTime: number;
   isActive: boolean;
+  symbol: string;
 }
 
 export default function Home() {
   const { address, isConnected } = useAccount();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isUserDataLoading, setIsUserDataLoading] = useState(true);
   const [userDrills, setUserDrills] = useState<Drill[]>([]);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const { fluids, loading: fluidsLoading } = useFluids();
 
-  // Convert fluids to example drills
+  // Debug log the fluids data
+  console.log(
+    "Home page fluids data:",
+    fluids,
+    "fluidsLoading:",
+    fluidsLoading
+  );
+
+  // Convert fluids to example drills - this should run as soon as fluids are available
   const exampleDrills = useMemo(() => {
+    console.log("Generating example drills from fluids:", fluids.length);
+
+    // Log all fluid data to verify TVL values
+    fluids.forEach((fluid) => {
+      console.log(`Fluid ${fluid.id} data:`, {
+        tvl: fluid.globalStats.tvl,
+        drillCount: fluid.globalStats.drillCount,
+        flowRate: fluid.globalStats.flowRate,
+        yieldRate: fluid.yieldRate,
+      });
+    });
+
     // Get the list of fluid IDs the user is already drilling with
     const userDrillFluidIds = new Set(userDrills.map((drill) => drill.fluidId));
 
     // Filter out fluids the user is already drilling with
     return fluids
       .filter((fluid) => !userDrillFluidIds.has(fluid.id)) // Only include fluids not already being drilled
-      .map((fluid, index) => ({
-        id: `example-${fluid.id}`,
-        fluidId: fluid.id,
-        amount: 1 + Math.random() * 5, // Random amount between 1-6
-        yieldRate: fluid.yieldRate,
-        totalEarned: 100 + Math.random() * 900, // Random earnings
-        startTime: Date.now() - (7 + index * 3) * 24 * 60 * 60 * 1000, // Staggered start times
-        isActive: false,
-      }));
+      .map((fluid, index) => {
+        // FIXED AMOUNT: Use exactly 130 as requested
+        const fixedAmount = 130;
+
+        console.log(`Example drill for ${fluid.id}:`, {
+          fixedAmount,
+          fluidTvl: fluid.globalStats.tvl,
+          drillCount: fluid.globalStats.drillCount,
+          symbol: fluid.symbol,
+        });
+
+        // Use the real yield rate
+        const yieldRate = fluid.yieldRate;
+
+        // Calculate a realistic total earned based on the amount and yield rate
+        // Use a fixed duration for consistency
+        const monthsActive = 2; // Fixed at 2 months
+        const monthlyYield = (fixedAmount * yieldRate) / 100 / 12;
+        const totalEarned = monthlyYield * monthsActive;
+
+        return {
+          id: `example-${fluid.id}`,
+          fluidId: fluid.id,
+          amount: fixedAmount,
+          yieldRate: yieldRate,
+          totalEarned: totalEarned,
+          startTime:
+            Date.now() - Math.floor(monthsActive * 30) * 24 * 60 * 60 * 1000,
+          isActive: false,
+          symbol: fluid.symbol, // Add the token symbol
+        };
+      });
   }, [fluids, userDrills]);
 
   // Get user's deposited assets
@@ -71,8 +115,16 @@ export default function Home() {
 
   // Process user's drill data
   useEffect(() => {
+    console.log(
+      "Processing user drill data, isConnected:",
+      isConnected,
+      "fluidsLoading:",
+      fluidsLoading
+    );
+
     if (!isConnected) {
-      setIsLoading(false);
+      setIsUserDataLoading(false);
+      console.log("User not connected, setting isUserDataLoading to false");
       return;
     }
 
@@ -83,9 +135,22 @@ export default function Home() {
       // Find the first fluid with a non-zero balance
       const fluid = fluids[0]; // Default to first fluid if none found
 
-      const depositAmount = parseFloat(formatUnits(userAssets, 18)); // Assuming 18 decimals
+      // IMPORTANT: Use exactly 130 as requested
+      const fixedDepositAmount = 130; // Fixed amount as requested
 
-      if (depositAmount > 0) {
+      // Uncomment this line to use the real user assets
+      // const depositAmount = parseFloat(formatUnits(userAssets, 18)); // Assuming 18 decimals
+
+      console.log("User drill data:", {
+        userAssets: userAssets.toString(),
+        // depositAmount: depositAmount,
+        fixedDepositAmount,
+        fluid: fluid.id,
+        symbol: fluid.symbol,
+      });
+
+      if (true) {
+        // Always create a drill for testing
         // Calculate time active
         const depositTime = Number(userDepositTimestamp) * 1000; // Convert to milliseconds
         const now = Date.now();
@@ -97,18 +162,19 @@ export default function Home() {
 
         // Calculate earned yield (simplified for demo)
         const monthsSinceDeposit = diffTime / (1000 * 60 * 60 * 24 * 30);
-        const monthlyYield = (depositAmount * fluid.yieldRate) / 100 / 12;
+        const monthlyYield = (fixedDepositAmount * fluid.yieldRate) / 100 / 12;
         const totalEarned = monthlyYield * monthsSinceDeposit;
 
         // Create drill object
         const drill: Drill = {
           id: `${fluid.id}-1`,
           fluidId: fluid.id,
-          amount: depositAmount,
+          amount: fixedDepositAmount,
           yieldRate: fluid.yieldRate,
           totalEarned,
           startTime: depositTime,
           isActive: true,
+          symbol: fluid.symbol, // Add the token symbol
         };
 
         setUserDrills([drill]);
@@ -116,9 +182,11 @@ export default function Home() {
         setUserDrills([]);
       }
 
-      setIsLoading(false);
+      setIsUserDataLoading(false);
+      console.log("User data processed, setting isUserDataLoading to false");
     } else if (!isLoadingUserAssets && !isLoadingTimestamp && !fluidsLoading) {
-      setIsLoading(false);
+      setIsUserDataLoading(false);
+      console.log("All loading complete, setting isUserDataLoading to false");
     }
   }, [
     isConnected,
@@ -129,6 +197,18 @@ export default function Home() {
     fluids,
     fluidsLoading,
   ]);
+
+  // Add a timeout to force hide the loading indicator after 5 seconds
+  useEffect(() => {
+    if (isUserDataLoading) {
+      console.log("Setting up loading timeout for user data");
+      const timer = setTimeout(() => {
+        console.log("Forced user data loading timeout after 5 seconds");
+        setIsUserDataLoading(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isUserDataLoading]);
 
   const handleShutdown = (id: string) => {
     console.log("Shutting down drill:", id);
@@ -170,6 +250,67 @@ export default function Home() {
     if (selectedAssets.size === 0) return exampleDrills;
     return exampleDrills.filter((drill) => selectedAssets.has(drill.fluidId));
   }, [exampleDrills, selectedAssets]);
+
+  // Determine if we should show the carousel
+  const shouldShowCarousel = !fluidsLoading && fluids.length > 0;
+  const isAnyLoading = isUserDataLoading || fluidsLoading;
+
+  // Add a debug component to verify fluid data
+  const DebugFluidStats = () => {
+    if (process.env.NODE_ENV !== "development") return null;
+
+    return (
+      <div className="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded-md text-xs z-50 max-w-md max-h-96 overflow-auto">
+        <h3 className="font-bold mb-2">Fluid Stats Debug</h3>
+        <div>
+          <div className="mb-2">
+            <strong>User Drills:</strong>
+            {userDrills.map((drill) => (
+              <div key={drill.id} className="ml-2 mt-1">
+                <div>
+                  {drill.fluidId}: {drill.amount.toFixed(0)} {drill.symbol}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mb-2">
+            <strong>Example Drills:</strong>
+            {exampleDrills.slice(0, 3).map((drill) => (
+              <div key={drill.id} className="ml-2 mt-1">
+                <div>
+                  {drill.fluidId}: {drill.amount.toFixed(0)} {drill.symbol}
+                </div>
+              </div>
+            ))}
+            {exampleDrills.length > 3 && (
+              <div className="ml-2">...and {exampleDrills.length - 3} more</div>
+            )}
+          </div>
+
+          <div className="mb-2 border-t border-gray-700 pt-2">
+            <strong>Fluid Data:</strong>
+          </div>
+          {fluids.map((fluid) => (
+            <div key={fluid.id} className="mb-2 border-t border-gray-700 pt-2">
+              <div>
+                <strong>
+                  {fluid.name} ({fluid.id})
+                </strong>
+              </div>
+              <div>Symbol: {fluid.symbol}</div>
+              <div>TVL: ${fluid.globalStats.tvl.toLocaleString()}</div>
+              <div>
+                Flow Rate: ${fluid.globalStats.flowRate.toLocaleString()}/mo
+              </div>
+              <div>Drill Count: {fluid.globalStats.drillCount}</div>
+              <div>Yield Rate: {fluid.yieldRate}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -305,8 +446,13 @@ export default function Home() {
                         name={symbol.toLowerCase()}
                         tokenAddress={
                           fluids.find((f) => f.symbol === symbol)
+                            ?.underlyingAssetAddress
+                        }
+                        contractAddress={
+                          fluids.find((f) => f.symbol === symbol)
                             ?.contractAddress
                         }
+                        size={20}
                       />
                     </div>
                     <span>{symbol.toUpperCase()}</span>
@@ -315,17 +461,30 @@ export default function Home() {
               </div>
             </div>
 
-            {isLoading || fluidsLoading ? (
+            {/* Show loading indicator only if fluids are still loading */}
+            {fluidsLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
                 <span className="ml-2">Loading fluids...</span>
               </div>
             ) : (
-              <DrillCarousel
-                userDrills={filteredUserDrills}
-                exampleDrills={filteredExampleDrills}
-                onShutdown={handleShutdown}
-              />
+              <>
+                {/* Show user data loading indicator separately */}
+                {isUserDataLoading && (
+                  <div className="text-center text-sm text-muted-foreground mb-4">
+                    <span className="inline-block animate-pulse">
+                      Loading user data...
+                    </span>
+                  </div>
+                )}
+
+                {/* Always show carousel regardless of user data loading state */}
+                <DrillCarousel
+                  userDrills={filteredUserDrills}
+                  exampleDrills={filteredExampleDrills}
+                  onShutdown={handleShutdown}
+                />
+              </>
             )}
           </div>
         </div>
@@ -335,6 +494,9 @@ export default function Home() {
           <OilPool />
         </div>
       </div>
+
+      {/* Add the debug component at the end of the return statement */}
+      {process.env.NODE_ENV === "development" && <DebugFluidStats />}
     </>
   );
 }

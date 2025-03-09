@@ -19,12 +19,25 @@ type SortField = "yieldRate" | "drillCount" | "flowRate" | "tvl";
 
 export function FluidList() {
   const { fluids, loading, error } = useFluids();
+
+  // Debug log the fluids data
+  console.log("Fluids data:", fluids);
+
   const [sortBy, setSortBy] = useState<SortField>("yieldRate");
   const [sortDesc, setSortDesc] = useState(true);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
 
   // Get unique asset types from fluids
   const assetTypes = [...new Set(fluids.map((f) => f.symbol))];
+
+  // Debug each fluid's underlyingAssetAddress
+  fluids.forEach((fluid) => {
+    console.log(`Fluid ${fluid.id} (${fluid.symbol}):`, {
+      underlyingAssetAddress: fluid.underlyingAssetAddress,
+      hasProperty: "underlyingAssetAddress" in fluid,
+      component: "FluidList",
+    });
+  });
 
   // Filter and sort fluids
   const filteredFluids = fluids.filter(
@@ -78,12 +91,24 @@ export function FluidList() {
                 onClick={() => toggleAsset(symbol)}
               >
                 <div className="w-5 h-5">
-                  <Icon
-                    name={symbol.toLowerCase()}
-                    tokenAddress={
-                      fluids.find((f) => f.symbol === symbol)?.contractAddress
-                    }
-                  />
+                  {/* Debug the specific fluid being used for this icon */}
+                  {(() => {
+                    const foundFluid = fluids.find((f) => f.symbol === symbol);
+                    console.log(`Found fluid for symbol ${symbol}:`, {
+                      foundFluid,
+                      underlyingAssetAddress:
+                        foundFluid?.underlyingAssetAddress,
+                      component: "FluidList-button",
+                    });
+                    return (
+                      <Icon
+                        name={symbol.toLowerCase()}
+                        tokenAddress={foundFluid?.underlyingAssetAddress}
+                        contractAddress={foundFluid?.contractAddress}
+                        size={20}
+                      />
+                    );
+                  })()}
                 </div>
                 <span>{symbol}</span>
                 <span className="text-xs text-muted-foreground">
@@ -153,7 +178,9 @@ export function FluidList() {
                       <div className="w-12 h-12">
                         <Icon
                           name={fluid.id}
-                          tokenAddress={fluid.contractAddress}
+                          tokenAddress={fluid.underlyingAssetAddress}
+                          contractAddress={fluid.contractAddress}
+                          size={48}
                         />
                       </div>
                       <div className="space-y-1">

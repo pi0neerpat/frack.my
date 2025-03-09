@@ -17,7 +17,11 @@ interface DrillCardProps {
   isActive: boolean;
   onShutdown: () => void;
   isExample?: boolean;
-  asset?: { contractAddress: string };
+  asset?: {
+    underlyingAssetAddress?: `0x${string}`;
+    contractAddress?: `0x${string}`;
+  };
+  symbol?: string;
 }
 
 export function DrillCard({
@@ -30,8 +34,17 @@ export function DrillCard({
   onShutdown,
   isExample = false,
   asset,
+  symbol = "TOKEN",
 }: DrillCardProps) {
   const router = useRouter();
+
+  // Debug log the asset data
+  console.log(`DrillCard for ${fluidId}:`, {
+    asset,
+    underlyingAssetAddress: asset?.underlyingAssetAddress,
+    contractAddress: asset?.contractAddress,
+    component: "DrillCard",
+  });
 
   return (
     <Card
@@ -54,7 +67,9 @@ export function DrillCard({
             <div className="w-8 h-8">
               <Icon
                 name={fluidId.toLowerCase() as any}
-                tokenAddress={asset?.contractAddress}
+                tokenAddress={asset?.underlyingAssetAddress}
+                contractAddress={asset?.contractAddress}
+                size={32}
               />
             </div>
             <h3 className="text-xl font-bold">{fluidId.toUpperCase()}</h3>
@@ -84,7 +99,9 @@ export function DrillCard({
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Amount Deposited</span>
-            <span>{amount.toFixed(4)}</span>
+            <span>
+              {amount.toFixed(0)} {symbol}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Current Yield</span>

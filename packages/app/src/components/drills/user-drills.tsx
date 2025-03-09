@@ -20,22 +20,26 @@ export function UserDrills() {
     abi: YIELD_BOX_ABI,
     functionName: "userAssets",
     args: address ? [address] : undefined,
-    enabled: isConnected && !!address,
+    query: {
+      enabled: isConnected && !!address,
+    },
   });
 
   // Get user's deposit timestamp
-  const { data: userDepositTimestamp, isLoading: isLoadingTimestamp } =
+  const { data: depositTimestamp, isLoading: isLoadingDepositTimestamp } =
     useReadContract({
       address: FRACKING_ADDRESS,
       abi: YIELD_BOX_ABI,
       functionName: "userDepositTimestamp",
       args: address ? [address] : undefined,
-      enabled: isConnected && !!address,
+      query: {
+        enabled: isConnected && !!address,
+      },
     });
 
   // Process user's drill data
   useEffect(() => {
-    if (isConnected && userAssets && userDepositTimestamp) {
+    if (isConnected && userAssets && depositTimestamp) {
       // For now, we're assuming a single drill per user
       // In a real app, you would fetch all user drills
 
@@ -46,7 +50,7 @@ export function UserDrills() {
 
       if (depositAmount > 0) {
         // Calculate time active
-        const depositTime = Number(userDepositTimestamp) * 1000; // Convert to milliseconds
+        const depositTime = Number(depositTimestamp) * 1000; // Convert to milliseconds
         const now = Date.now();
         const diffTime = Math.abs(now - depositTime);
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -78,15 +82,15 @@ export function UserDrills() {
       }
 
       setIsLoading(false);
-    } else if (!isLoadingUserAssets && !isLoadingTimestamp) {
+    } else if (!isLoadingUserAssets && !isLoadingDepositTimestamp) {
       setIsLoading(false);
     }
   }, [
     isConnected,
     userAssets,
-    userDepositTimestamp,
+    depositTimestamp,
     isLoadingUserAssets,
-    isLoadingTimestamp,
+    isLoadingDepositTimestamp,
   ]);
 
   // Handle shutdown
