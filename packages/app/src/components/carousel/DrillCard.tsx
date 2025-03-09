@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Power, ExternalLink, BarChart3 } from "lucide-react";
+import { Power, ExternalLink } from "lucide-react";
 import { Icon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,7 @@ interface DrillCardProps {
   isActive: boolean;
   onShutdown: () => void;
   isExample?: boolean;
+  asset?: { contractAddress: string };
 }
 
 export function DrillCard({
@@ -28,12 +29,9 @@ export function DrillCard({
   isActive,
   onShutdown,
   isExample = false,
+  asset,
 }: DrillCardProps) {
   const router = useRouter();
-
-  const handleViewStats = () => {
-    router.push(`/vaults/${fluidId.toLowerCase()}/stats`);
-  };
 
   return (
     <Card
@@ -54,21 +52,15 @@ export function DrillCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8">
-              <Icon name={fluidId.toLowerCase() as any} />
+              <Icon
+                name={fluidId.toLowerCase() as any}
+                tokenAddress={asset?.contractAddress}
+              />
             </div>
             <h3 className="text-xl font-bold">{fluidId.toUpperCase()}</h3>
           </div>
           {!isExample && (
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleViewStats}
-                className="text-muted-foreground hover:text-purple-400"
-                title="View Vault Stats"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
               <Button
                 variant="outline"
                 size="icon"

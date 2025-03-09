@@ -78,7 +78,12 @@ export function FluidList() {
                 onClick={() => toggleAsset(symbol)}
               >
                 <div className="w-5 h-5">
-                  <Icon name={symbol.toLowerCase()} />
+                  <Icon
+                    name={symbol.toLowerCase()}
+                    tokenAddress={
+                      fluids.find((f) => f.symbol === symbol)?.contractAddress
+                    }
+                  />
                 </div>
                 <span>{symbol}</span>
                 <span className="text-xs text-muted-foreground">
@@ -146,7 +151,10 @@ export function FluidList() {
                     {/* Left section: Icon, Name, Protocol, Drills & Strategy */}
                     <div className="flex items-center gap-6">
                       <div className="w-12 h-12">
-                        <Icon name={fluid.id} />
+                        <Icon
+                          name={fluid.id}
+                          tokenAddress={fluid.contractAddress}
+                        />
                       </div>
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold">{fluid.name}</h3>

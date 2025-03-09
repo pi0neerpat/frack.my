@@ -58,7 +58,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const [amount, setAmount] = useState("");
-  const [sliderValue, setSliderValue] = useState(0);
+  const [sliderValue, setSliderValue] = useState(100);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [justApproved, setJustApproved] = useState(false);
@@ -86,6 +86,14 @@ export function DepositForm({ assetType }: DepositFormProps) {
   const maxAmount = balanceData
     ? parseFloat(formatUnits(balanceData.value, balanceData.decimals))
     : 0;
+
+  // Initialize amount when maxAmount is available
+  useEffect(() => {
+    if (maxAmount > 0) {
+      // Set initial amount to 100% of maxAmount (since sliderValue defaults to 100)
+      setAmount(maxAmount.toFixed(4));
+    }
+  }, [maxAmount]);
 
   // Calculate parsed amount early so it can be used in hooks
   const parsedAmount = amount
@@ -422,9 +430,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
       <Card>
         <CardHeader>
           <CardTitle>Deposit {asset.name}</CardTitle>
-          <CardDescription>
-            Start fracking with {asset.name} 
-          </CardDescription>
+          <CardDescription>Start fracking with {asset.name}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">

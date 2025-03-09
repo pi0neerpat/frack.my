@@ -10,6 +10,7 @@ import { formatUnits } from "viem";
 import { Loader2 } from "lucide-react";
 import { YIELD_BOX_ABI, FRACKING_ADDRESS } from "@/config/contracts";
 import { useFluids } from "@/context/fluids-context";
+import type { Fluid } from "@/types/fluids";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import Head from "next/head";
@@ -300,7 +301,13 @@ export default function Home() {
                     onClick={() => toggleAsset(symbol)}
                   >
                     <div className="w-5 h-5">
-                      <Icon name={symbol.toLowerCase()} />
+                      <Icon
+                        name={symbol.toLowerCase()}
+                        tokenAddress={
+                          fluids.find((f) => f.symbol === symbol)
+                            ?.contractAddress
+                        }
+                      />
                     </div>
                     <span>{symbol.toUpperCase()}</span>
                   </Button>

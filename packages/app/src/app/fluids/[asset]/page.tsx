@@ -5,9 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { DepositForm } from "@/components/deposit/deposit-form";
 import { AssetAnimation } from "@/components/deposit/asset-animation";
 import { FLUIDS } from "@/config/fluids";
-import { Button } from "@/components/ui/button";
-import { BarChart3 } from "lucide-react";
-import Link from "next/link";
 
 export default function DepositPage() {
   const params = useParams();
@@ -29,14 +26,8 @@ export default function DepositPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Start Fracking</h1>
-        <Link href={`/vaults/${assetType}/stats`} passHref>
-          <Button variant="outline" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span>View Vault Stats</span>
-          </Button>
-        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
