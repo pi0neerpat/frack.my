@@ -73,7 +73,7 @@
     - Implement efficient indexing and querying strategies for off-chain data.
 
     Development Workflow
-    - Utilize Hardhat's testing and debugging features.
+    - Utilize Foundry's testing and debugging features.
     - Implement a robust CI/CD pipeline for smart contract deployments.
     - Use static type checking and linting tools in pre-commit hooks.
 
