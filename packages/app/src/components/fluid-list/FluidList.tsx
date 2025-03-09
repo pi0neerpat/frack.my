@@ -28,7 +28,7 @@ export function FluidList() {
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
 
   // Get unique asset types from fluids
-  const assetTypes = [...new Set(fluids.map((f) => f.symbol))];
+  const assetTypes = Array.from(new Set(fluids.map((f) => f.symbol)));
 
   // Debug each fluid's underlyingAssetAddress
   fluids.forEach((fluid) => {

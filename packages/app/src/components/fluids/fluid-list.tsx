@@ -37,7 +37,10 @@ export function FluidList() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Get unique protocols for filter
-  const protocols = ["all", ...new Set(FLUIDS.map((fluid) => fluid.protocol))];
+  const protocols = [
+    "all",
+    ...Array.from(new Set(FLUIDS.map((fluid) => fluid.protocol))),
+  ];
 
   // Filter fluids based on search term and protocol filter
   const filteredFluids = FLUIDS.filter((fluid) => {
@@ -226,10 +229,12 @@ function FluidRow({
   isConnected,
 }: FluidRowProps) {
   // Get user's balance of this fluid
-  const { data: balance, isLoading: isLoadingBalance } = useBalance({
+  const { data: balance } = useBalance({
     address: userAddress,
     token: fluid.underlyingAssetAddress,
-    enabled: isConnected && !!userAddress,
+    query: {
+      enabled: isConnected && !!userAddress,
+    },
   });
 
   return (
@@ -244,22 +249,13 @@ function FluidRow({
       </TableCell>
       <TableCell className="hidden lg:table-cell">{fluid.protocol}</TableCell>
       <TableCell className="hidden lg:table-cell">
-        {isConnected ? (
-          isLoadingBalance ? (
-            <div className="flex items-center">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Loading...
-            </div>
-          ) : balance ? (
-            `${parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(6)} ${
-              fluid.symbol
-            }`
-          ) : (
-            "0"
-          )
-        ) : (
-          "Connect wallet"
-        )}
+        {isConnected
+          ? balance
+            ? `${parseFloat(formatUnits(balance.value, balance.decimals)).toFixed(6)} ${
+                fluid.symbol
+              }`
+            : "0"
+          : "Connect wallet"}
       </TableCell>
       <TableCell className="text-right">
         <Button onClick={onSelect} size="sm">

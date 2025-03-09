@@ -1,7 +1,13 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { type Account, useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useChainId,
+  useSwitchChain,
+} from "wagmi";
 import { injected } from "wagmi/connectors";
 
 interface Web3ContextType {
@@ -15,7 +21,9 @@ interface Web3ContextType {
   error?: Error;
 }
 
-export const Web3Context = createContext<Web3ContextType>({} as Web3ContextType);
+export const Web3Context = createContext<Web3ContextType>(
+  {} as Web3ContextType
+);
 
 export function useWeb3() {
   const context = useContext(Web3Context);
