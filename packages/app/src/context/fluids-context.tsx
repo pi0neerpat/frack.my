@@ -79,11 +79,11 @@ export function FluidsProvider({ children }: { children: React.ReactNode }) {
           throw new Error("Public client not available");
         }
 
-        // Call the poolAddress function on the vault contract
+        // Call the distributionPool function on the vault contract
         const poolAddress = await publicClient.readContract({
           address: vaultAddress,
           abi: YIELD_BOX_ABI,
-          functionName: "poolAddress",
+          functionName: "distributionPool",
         });
 
         console.log(
@@ -384,7 +384,6 @@ export function FluidsProvider({ children }: { children: React.ReactNode }) {
 
     // Only call refreshFluids once on mount
     refreshFluidsRef.current();
-
   }, []); // Empty dependency array to ensure it only runs once on mount
 
   // Add a debug effect to track loading state changes

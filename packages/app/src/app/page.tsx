@@ -254,63 +254,6 @@ export default function Home() {
   const shouldShowCarousel = !fluidsLoading && fluids.length > 0;
   const isAnyLoading = isUserDataLoading || fluidsLoading;
 
-  // Add a debug component to verify fluid data
-  const DebugFluidStats = () => {
-    if (process.env.NODE_ENV !== "development") return null;
-
-    return (
-      <div className="fixed bottom-4 left-4 bg-black/80 text-white p-4 rounded-md text-xs z-50 max-w-md max-h-96 overflow-auto">
-        <h3 className="font-bold mb-2">Fluid Stats Debug</h3>
-        <div>
-          <div className="mb-2">
-            <strong>User Drills:</strong>
-            {userDrills.map((drill) => (
-              <div key={drill.id} className="ml-2 mt-1">
-                <div>
-                  {drill.fluidId}: {drill.amount.toFixed(0)} {drill.symbol}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mb-2">
-            <strong>Example Drills:</strong>
-            {exampleDrills.slice(0, 3).map((drill) => (
-              <div key={drill.id} className="ml-2 mt-1">
-                <div>
-                  {drill.fluidId}: {drill.amount.toFixed(0)} {drill.symbol}
-                </div>
-              </div>
-            ))}
-            {exampleDrills.length > 3 && (
-              <div className="ml-2">...and {exampleDrills.length - 3} more</div>
-            )}
-          </div>
-
-          <div className="mb-2 border-t border-gray-700 pt-2">
-            <strong>Fluid Data:</strong>
-          </div>
-          {fluids.map((fluid) => (
-            <div key={fluid.id} className="mb-2 border-t border-gray-700 pt-2">
-              <div>
-                <strong>
-                  {fluid.name} ({fluid.id})
-                </strong>
-              </div>
-              <div>Symbol: {fluid.symbol}</div>
-              <div>TVL: ${fluid.globalStats.tvl.toLocaleString()}</div>
-              <div>
-                Flow Rate: ${fluid.globalStats.flowRate.toLocaleString()}/mo
-              </div>
-              <div>Drill Count: {fluid.globalStats.drillCount}</div>
-              <div>Yield Rate: {fluid.yieldRate}%</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       {/* Preload background image to prevent layout shift */}
@@ -493,9 +436,6 @@ export default function Home() {
           <OilPool />
         </div>
       </div>
-
-      {/* Add the debug component at the end of the return statement */}
-      {process.env.NODE_ENV === "development" && <DebugFluidStats />}
     </>
   );
 }

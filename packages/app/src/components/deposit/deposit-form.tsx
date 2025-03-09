@@ -45,8 +45,10 @@ const SuccessAnimation = ({ onComplete }: { onComplete: () => void }) => {
         <div className="w-24 h-24 bg-purple-600 rounded-full mx-auto mb-4 animate-pulse flex items-center justify-center">
           <span className="text-4xl">🎉</span>
         </div>
-        <h2 className="text-2xl font-bold mb-2">Drill Successfully Built!</h2>
-        <p className="text-muted-foreground">Redirecting to your drills...</p>
+        <h2 className="text-2xl font-bold mb-2">All Steps Completed!</h2>
+        <p className="text-muted-foreground">
+          Your fluid is now deposited and connected to the yield stream.
+        </p>
       </div>
     </div>
   );
@@ -59,38 +61,35 @@ interface DepositFormProps {
 export function DepositForm({ assetType }: DepositFormProps) {
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const [amount, setAmount] = useState("");
-  const [sliderValue, setSliderValue] = useState(100);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [error, setError] = useState("");
-  const [justApproved, setJustApproved] = useState(false);
-
   const publicClient = usePublicClient();
+
+  // Form state
+  const [amount, setAmount] = useState("");
+  const [sliderValue, setSliderValue] = useState(100); // Default to 100%
+  const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Step tracking
+  const [currentStep, setCurrentStep] = useState<
+    "approve" | "deposit" | "connect" | "complete"
+  >("approve");
+
+  // Pool state
   const [poolAddress, setPoolAddress] = useState<string | null>(null);
   const [isConnectingPool, setIsConnectingPool] = useState(false);
   const [connectPoolError, setConnectPoolError] = useState<string | null>(null);
-  const [connectPoolSuccess, setConnectPoolSuccess] = useState(false);
 
   // Get asset information
-  const asset = FLUIDS.find(
-    (fluid) => fluid.id.toLowerCase() === assetType.toLowerCase()
-  );
+  const asset = FLUIDS.find((f) => f.id === assetType);
 
-  // For testing purposes, if the vault address and underlying asset address are the same,
-  // we'll use a different address for the vault to simulate the approval flow
-  const vaultAddressToUse =
-    asset?.underlyingAssetAddress === asset?.vaultAddress
-      ? "0x1111111111111111111111111111111111111111" // Dummy address for testing
-      : asset?.vaultAddress;
-
-  // Get user balance
+  // Get user's balance
   const { data: balanceData, isLoading: isLoadingBalance } = useBalance({
     address,
-    token: asset?.underlyingAssetAddress,
+    token: asset?.underlyingAssetAddress as `0x${string}`,
   });
 
-  // Calculate min and max values
-  const minAmount = 0.01;
+  // Calculate min and max amount
+  const minAmount = 0.01; // Minimum deposit amount
   const maxAmount = balanceData
     ? parseFloat(formatUnits(balanceData.value, balanceData.decimals))
     : 0;
@@ -98,129 +97,94 @@ export function DepositForm({ assetType }: DepositFormProps) {
   // Initialize amount when maxAmount is available
   useEffect(() => {
     if (maxAmount > 0) {
-      // Set initial amount to 100% of maxAmount (since sliderValue defaults to 100)
+      // Set initial amount to 100% of maxAmount
       setAmount(maxAmount.toFixed(4));
+      setSliderValue(100);
     }
   }, [maxAmount]);
 
-  // Calculate parsed amount early so it can be used in hooks
+  // Check if amount is valid
   const parsedAmount = amount
     ? parseUnits(amount, balanceData?.decimals || 18)
     : BigInt(0);
+  const isAmountValid =
+    parseFloat(amount) >= minAmount && parseFloat(amount) <= maxAmount;
+
+  // Determine which vault address to use
+  const vaultAddressToUse =
+    asset?.underlyingAssetAddress === asset?.vaultAddress
+      ? asset?.underlyingAssetAddress
+      : asset?.vaultAddress;
 
   // Log asset and address information for debugging
   useEffect(() => {
     if (asset && address) {
-      console.log("Allowance check parameters:", {
-        tokenAddress: asset.underlyingAssetAddress,
-        owner: address,
-        spender: vaultAddressToUse,
-        tokenAbi: ERC20_ABI,
-        enabled:
-          !!address && !!asset.underlyingAssetAddress && !!vaultAddressToUse,
+      console.log("Asset and address information:", {
+        asset,
+        address,
+        vaultAddressToUse,
       });
     }
   }, [asset, address, vaultAddressToUse]);
 
-  // Get current allowance - explicitly check all parameters are defined
+  // Get allowance
   const {
     data: allowance,
-    refetch: refetchAllowance,
     isLoading: isLoadingAllowance,
+    refetch: refetchAllowance,
     error: allowanceError,
-    status: allowanceStatus,
   } = useReadContract({
-    address: asset?.underlyingAssetAddress,
+    address: asset?.underlyingAssetAddress as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "allowance",
     args:
       address && asset?.underlyingAssetAddress && vaultAddressToUse
         ? [address, vaultAddressToUse]
         : undefined,
+    query: {
+      enabled:
+        !!address && !!asset?.underlyingAssetAddress && !!vaultAddressToUse,
+    },
   });
 
   // Log allowance results for debugging
   useEffect(() => {
-    console.log("Allowance result:", {
-      allowance: allowance ? allowance.toString() : "undefined",
-      error: allowanceError,
-      status: allowanceStatus,
-      args:
-        address && asset?.underlyingAssetAddress && vaultAddressToUse
-          ? [address, vaultAddressToUse]
-          : "undefined args",
-      underlyingAssetAddress: asset?.underlyingAssetAddress,
-      vaultAddressToUse,
-    });
-
-    // If allowance is undefined, try to debug why
-    if (
-      allowance === undefined &&
-      address &&
-      asset?.underlyingAssetAddress &&
-      vaultAddressToUse
-    ) {
-      console.log("Debugging allowance issue:", {
-        tokenContract: asset.underlyingAssetAddress,
-        isValidTokenAddress:
-          asset.underlyingAssetAddress.startsWith("0x") &&
-          asset.underlyingAssetAddress.length === 42,
-        isValidSpender:
-          vaultAddressToUse.startsWith("0x") && vaultAddressToUse.length === 42,
-        isValidOwner: address.startsWith("0x") && address.length === 42,
+    if (allowance !== undefined) {
+      console.log("Allowance:", {
+        allowance: allowance.toString(),
+        parsedAmount: parsedAmount.toString(),
       });
     }
-  }, [
-    allowance,
-    allowanceError,
-    allowanceStatus,
-    address,
-    asset?.underlyingAssetAddress,
-    vaultAddressToUse,
-  ]);
+  }, [allowance, parsedAmount]);
 
-  // Update amount when slider changes
-  const handleSliderChange = (value: number[]) => {
-    const percentage = value[0];
-    setSliderValue(percentage);
-
-    if (maxAmount > 0) {
-      // Calculate amount based on percentage between min and max
-      const range = maxAmount - minAmount;
-      const calculatedAmount = minAmount + range * (percentage / 100);
-
-      // Format to 4 decimal places
-      setAmount(calculatedAmount.toFixed(4));
+  // If allowance is undefined, try to debug why
+  useEffect(() => {
+    if (
+      address &&
+      asset?.underlyingAssetAddress &&
+      vaultAddressToUse &&
+      allowance === undefined &&
+      !isLoadingAllowance
+    ) {
+      console.log("Debugging allowance issue:", {
+        address,
+        underlyingAssetAddress: asset.underlyingAssetAddress,
+        vaultAddressToUse,
+        isAddressValid: address.startsWith("0x") && address.length === 42,
+        isAssetAddressValid:
+          asset.underlyingAssetAddress.startsWith("0x") &&
+          asset.underlyingAssetAddress.length === 42,
+        isVaultAddressValid:
+          vaultAddressToUse.startsWith("0x") && vaultAddressToUse.length === 42,
+      });
     }
-  };
+  }, [address, asset, vaultAddressToUse, allowance, isLoadingAllowance]);
 
-  // Update slider when amount changes manually
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newAmount = e.target.value;
-    setAmount(newAmount);
+  // Determine if we need to show the approve button
+  const shouldShowApproveButton =
+    allowance !== undefined && parsedAmount > allowance;
 
-    if (maxAmount > minAmount) {
-      const numAmount = parseFloat(newAmount);
-      if (
-        !isNaN(numAmount) &&
-        numAmount >= minAmount &&
-        numAmount <= maxAmount
-      ) {
-        // Calculate percentage
-        const range = maxAmount - minAmount;
-        const percentage = ((numAmount - minAmount) / range) * 100;
-        setSliderValue(percentage);
-      }
-    }
-  };
-
-  // Check if approval is needed - with fallback for undefined allowance
-  const hasEnoughAllowance = allowance ? parsedAmount <= allowance : false;
-
-  // Force approval button if allowance is undefined or 0
-  const shouldShowApproveButton = !allowance || allowance === BigInt(0);
-
-  // Contract write hooks
+  // Write contract for approval
   const {
     writeContract: writeApprove,
     data: approveHash,
@@ -229,6 +193,30 @@ export function DepositForm({ assetType }: DepositFormProps) {
     error: approveError,
   } = useWriteContract();
 
+  // Wait for approval transaction
+  const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } =
+    useWaitForTransactionReceipt({
+      hash: approveHash,
+    });
+
+  // Effect to handle approval errors
+  useEffect(() => {
+    if (isApproveError && approveError) {
+      console.error("Approval error:", approveError);
+      setError(`Failed to approve token: ${approveError.message}`);
+    }
+  }, [isApproveError, approveError]);
+
+  // Effect to handle approval success
+  useEffect(() => {
+    if (isApproveSuccess) {
+      console.log("Approval transaction successful");
+      refetchAllowance();
+      setCurrentStep("deposit");
+    }
+  }, [isApproveSuccess, refetchAllowance]);
+
+  // Write contract for deposit
   const {
     writeContract: writeDeposit,
     data: depositHash,
@@ -237,97 +225,150 @@ export function DepositForm({ assetType }: DepositFormProps) {
     error: depositError,
   } = useWriteContract();
 
-  // Log errors
-  useEffect(() => {
-    if (isApproveError && approveError) {
-      console.error("Approval error:", approveError);
-      setError(`Failed to approve token: ${approveError.message}`);
-    }
-  }, [isApproveError, approveError]);
-
-  useEffect(() => {
-    if (isDepositError && depositError) {
-      console.error("Deposit error:", depositError);
-      setError(`Failed to create drill: ${depositError.message}`);
-    }
-  }, [isDepositError, depositError]);
-
-  // Transaction receipts
-  const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } =
-    useWaitForTransactionReceipt({
-      hash: approveHash,
-    });
-
-  // Effect to refetch allowance after approval transaction is confirmed
-  useEffect(() => {
-    if (isApproveSuccess) {
-      console.log("Approval transaction successful, refetching allowance");
-      refetchAllowance();
-    }
-  }, [isApproveSuccess, refetchAllowance]);
-
+  // Wait for deposit transaction
   const { isLoading: isDepositLoading, isSuccess: isDepositSuccess } =
     useWaitForTransactionReceipt({
       hash: depositHash,
     });
 
-  // Effect to show success and redirect after deposit transaction is confirmed
+  // Effect to handle deposit errors
+  useEffect(() => {
+    if (isDepositError && depositError) {
+      console.error("Deposit error:", depositError);
+      setError(`Failed to deposit fluid: ${depositError.message}`);
+    }
+  }, [isDepositError, depositError]);
+
+  // Effect to handle deposit success
   useEffect(() => {
     if (isDepositSuccess) {
       console.log("Deposit transaction successful");
-      setShowSuccess(true);
-      const timer = setTimeout(() => {
-        router.push("/");
-      }, 3000);
-      return () => clearTimeout(timer);
+      setCurrentStep("connect");
+
+      // Fetch pool address if not already fetched
+      if (!poolAddress) {
+        fetchPoolAddress();
+      }
     }
-  }, [isDepositSuccess, router]);
+  }, [isDepositSuccess]);
 
-  // Periodically refresh allowance
-  useEffect(() => {
-    if (address && asset?.underlyingAssetAddress && vaultAddressToUse) {
-      // Initial fetch
-      refetchAllowance();
-
-      // Set up interval to refresh every 5 seconds
-      const intervalId = setInterval(() => {
-        console.log("Auto-refreshing allowance");
-        refetchAllowance();
-      }, 5000);
-
-      return () => clearInterval(intervalId);
+  // Fetch the distribution pool address
+  const fetchPoolAddress = async () => {
+    if (!vaultAddressToUse || !publicClient) {
+      console.error(
+        "Cannot fetch pool address: missing vault address or public client"
+      );
+      setConnectPoolError("Missing vault address or client connection");
+      return;
     }
-  }, [
-    address,
-    asset?.underlyingAssetAddress,
-    vaultAddressToUse,
-    refetchAllowance,
-  ]);
 
-  // Validation
-  const isAmountValid =
-    Number(amount) >= minAmount && balanceData && Number(amount) <= maxAmount;
+    try {
+      console.log(
+        "Fetching distribution pool address for vault:",
+        vaultAddressToUse
+      );
 
-  // Debug allowance information
-  useEffect(() => {
-    console.log("Allowance information:", {
-      allowance: allowance ? allowance.toString() : "undefined",
-      parsedAmount: parsedAmount.toString(),
-      hasEnoughAllowance,
-      decimals: balanceData?.decimals,
-      vaultAddressToUse,
+      // Ensure the vault address is properly formatted
+      const formattedVaultAddress = vaultAddressToUse as `0x${string}`;
+
+      // Log the contract call parameters for debugging
+      console.log("Contract call parameters:", {
+        address: formattedVaultAddress,
+        abi: YIELD_BOX_ABI,
+        functionName: "distributionPool",
+      });
+
+      const pool = await publicClient.readContract({
+        address: formattedVaultAddress,
+        abi: YIELD_BOX_ABI,
+        functionName: "distributionPool",
+      });
+
+      console.log("Distribution pool address fetched:", pool);
+
+      if (!pool || pool === "0x0000000000000000000000000000000000000000") {
+        console.error("Invalid pool address returned:", pool);
+        setConnectPoolError(
+          "Invalid distribution pool address returned from contract"
+        );
+        return;
+      }
+
+      setPoolAddress(pool as string);
+    } catch (error: any) {
+      console.error("Error fetching distribution pool address:", error);
+
+      // Provide more detailed error message
+      const errorMessage = error?.message || "Unknown error";
+      setConnectPoolError(
+        `Failed to fetch distribution pool address: ${errorMessage}`
+      );
+
+      // For debugging purposes, log the error details
+      if (error?.cause) {
+        console.error("Error cause:", error.cause);
+      }
+    }
+  };
+
+  // Write contract for connecting to the pool
+  const {
+    writeContract: writeConnectPool,
+    data: connectPoolHash,
+    isPending: isConnectPoolPending,
+    isError: isConnectPoolError,
+    error: connectPoolErrorData,
+  } = useWriteContract();
+
+  // Wait for connect pool transaction
+  const { isLoading: isConnectPoolLoading, isSuccess: isConnectPoolSuccess } =
+    useWaitForTransactionReceipt({
+      hash: connectPoolHash,
     });
-  }, [
-    allowance,
-    parsedAmount,
-    hasEnoughAllowance,
-    balanceData?.decimals,
-    vaultAddressToUse,
-  ]);
 
-  // Handle manual refresh of allowance
+  // Effect to handle connect pool errors
+  useEffect(() => {
+    if (isConnectPoolError && connectPoolErrorData) {
+      console.error("Connect pool error:", connectPoolErrorData);
+      setConnectPoolError(
+        `Failed to connect to pool: ${connectPoolErrorData.message}`
+      );
+      setIsConnectingPool(false);
+    }
+  }, [isConnectPoolError, connectPoolErrorData]);
+
+  // Effect to handle connect pool success
+  useEffect(() => {
+    if (isConnectPoolSuccess) {
+      console.log("Connect output flow transaction successful");
+      setCurrentStep("complete");
+      setShowSuccess(true);
+    }
+  }, [isConnectPoolSuccess]);
+
+  // Handle slider change
+  const handleSliderChange = (value: number[]) => {
+    setSliderValue(value[0]);
+    if (maxAmount > 0) {
+      const newAmount = ((value[0] / 100) * maxAmount).toFixed(4);
+      setAmount(newAmount);
+    }
+  };
+
+  // Handle amount change
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAmount(value);
+    if (maxAmount > 0 && parseFloat(value) > 0) {
+      const percentage = Math.min(100, (parseFloat(value) / maxAmount) * 100);
+      setSliderValue(percentage);
+    } else {
+      setSliderValue(0);
+    }
+  };
+
+  // Handle refresh allowance
   const handleRefreshAllowance = () => {
-    console.log("Manually refreshing allowance");
     refetchAllowance();
   };
 
@@ -338,16 +379,14 @@ export function DepositForm({ assetType }: DepositFormProps) {
       !asset?.underlyingAssetAddress ||
       !vaultAddressToUse ||
       !isAmountValid
-    ) {
-      console.error("Cannot approve: missing required parameters");
+    )
       return;
-    }
 
     setError("");
 
     try {
-      console.log("Approving token:", {
-        tokenAddress: asset.underlyingAssetAddress,
+      console.log("Approving:", {
+        token: asset.underlyingAssetAddress,
         spender: vaultAddressToUse,
         amount: parsedAmount.toString(),
       });
@@ -384,110 +423,56 @@ export function DepositForm({ assetType }: DepositFormProps) {
       });
     } catch (error) {
       console.error("Deposit error:", error);
-      setError("Failed to create drill. Please try again.");
+      setError("Failed to deposit fluid. Please try again.");
     }
   };
 
-  // Fetch the distribution pool address
-  useEffect(() => {
-    const fetchPoolAddress = async () => {
-      if (!vaultAddressToUse || !publicClient) return;
-
-      try {
-        const pool = await publicClient.readContract({
-          address: vaultAddressToUse,
-          abi: YIELD_BOX_ABI,
-          functionName: "poolAddress",
-        });
-
-        setPoolAddress(pool as string);
-        console.log("Distribution pool address:", pool);
-      } catch (error) {
-        console.error("Error fetching pool address:", error);
-      }
-    };
-
-    fetchPoolAddress();
-  }, [vaultAddressToUse, publicClient]);
-
-  // Write contract for connecting to the pool
-  const {
-    writeContract: writeConnectPool,
-    data: connectPoolHash,
-    isPending: isConnectPoolPending,
-    isError: isConnectPoolError,
-    error: connectPoolErrorData,
-  } = useWriteContract();
-
-  // Wait for connect pool transaction
-  const { isLoading: isConnectPoolLoading, isSuccess: isConnectPoolSuccess } =
-    useWaitForTransactionReceipt({
-      hash: connectPoolHash,
-    });
-
-  // Effect to handle connect pool errors
-  useEffect(() => {
-    if (isConnectPoolError && connectPoolErrorData) {
-      console.error("Connect pool error:", connectPoolErrorData);
-      setConnectPoolError(
-        `Failed to connect to pool: ${connectPoolErrorData.message}`
-      );
-    }
-  }, [isConnectPoolError, connectPoolErrorData]);
-
-  // Effect to handle connect pool success
-  useEffect(() => {
-    if (isConnectPoolSuccess) {
-      console.log("Connect pool transaction successful");
-      setConnectPoolSuccess(true);
-      setShowSuccess(true);
-    }
-  }, [isConnectPoolSuccess]);
-
   // Handle connect to pool
   const handleConnectPool = async () => {
-    if (!address || !poolAddress || !asset) return;
+    if (!address || !asset) return;
 
     setConnectPoolError(null);
     setIsConnectingPool(true);
 
     try {
-      console.log("Connecting to pool:", {
+      // If we don't have a pool address yet, try to fetch it
+      if (!poolAddress) {
+        console.log("No distribution pool address available, fetching it now");
+        await fetchPoolAddress();
+
+        // If we still don't have a pool address after fetching, return
+        if (!poolAddress) {
+          console.error("Failed to get distribution pool address");
+          setIsConnectingPool(false);
+          return;
+        }
+      }
+
+      console.log("Connecting output flow:", {
         forwarderAddress: gdav1Forwarder.address,
         poolAddress: poolAddress,
+        vaultAddress: asset.vaultAddress,
       });
+
+      // Ensure addresses are properly formatted
+      const formattedVaultAddress = asset.vaultAddress as `0x${string}`;
+      const formattedPoolAddress = poolAddress as `0x${string}`;
 
       writeConnectPool({
         address: gdav1Forwarder.address,
         abi: gdav1Forwarder.abi,
         functionName: "connectPool",
-        args: [
-          asset.vaultAddress as `0x${string}`,
-          poolAddress as `0x${string}`,
-          "0x",
-        ],
+        args: [formattedVaultAddress, formattedPoolAddress, "0x"],
       });
-    } catch (error) {
-      console.error("Connect pool error:", error);
-      setConnectPoolError("Failed to connect to pool. Please try again.");
+    } catch (error: any) {
+      console.error("Connect output flow error:", error);
+      const errorMessage = error?.message || "Unknown error";
+      setConnectPoolError(`Failed to connect output flow: ${errorMessage}`);
       setIsConnectingPool(false);
     }
   };
 
-  // Modified deposit success handler to connect to pool after deposit
-  useEffect(() => {
-    if (
-      isDepositSuccess &&
-      poolAddress &&
-      !connectPoolSuccess &&
-      !isConnectingPool
-    ) {
-      console.log("Deposit successful, connecting to pool...");
-      handleConnectPool();
-    }
-  }, [isDepositSuccess, poolAddress, connectPoolSuccess, isConnectingPool]);
-
-  // Update the handleSuccessComplete function
+  // Handle success completion
   const handleSuccessComplete = () => {
     router.push("/");
   };
@@ -527,9 +512,12 @@ export function DepositForm({ assetType }: DepositFormProps) {
     );
   }
 
-  // Combined loading state
+  // Combined loading state for current step
   const isLoading =
-    isApproveLoading || isDepositLoading || isApproving || isDepositing;
+    (currentStep === "approve" && (isApproveLoading || isApproving)) ||
+    (currentStep === "deposit" && (isDepositLoading || isDepositing)) ||
+    (currentStep === "connect" &&
+      (isConnectPoolLoading || isConnectPoolPending));
 
   return (
     <>
@@ -537,7 +525,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
 
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Build a New Drill</CardTitle>
+          <CardTitle>Deposit Fluid</CardTitle>
           <CardDescription>
             Deposit {asset?.name} to start earning yield
           </CardDescription>
@@ -550,173 +538,326 @@ export function DepositForm({ assetType }: DepositFormProps) {
             </Alert>
           )}
 
-          {/* Connect pool error display */}
-          {connectPoolError && (
+          {/* Step indicator */}
+          <div className="mb-6">
+            <div className="flex justify-between mb-2">
+              <div
+                className={`text-sm font-medium ${currentStep === "approve" || currentStep === "deposit" || currentStep === "connect" || currentStep === "complete" ? "text-purple-600" : "text-gray-400"}`}
+              >
+                1. Approve
+              </div>
+              <div
+                className={`text-sm font-medium ${currentStep === "deposit" || currentStep === "connect" || currentStep === "complete" ? "text-purple-600" : "text-gray-400"}`}
+              >
+                2. Deposit
+              </div>
+              <div
+                className={`text-sm font-medium ${currentStep === "connect" || currentStep === "complete" ? "text-purple-600" : "text-gray-400"}`}
+              >
+                3. Connect Flow
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-purple-600 h-2.5 rounded-full"
+                style={{
+                  width:
+                    currentStep === "approve"
+                      ? "33%"
+                      : currentStep === "deposit"
+                        ? "66%"
+                        : "100%",
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Connect pool error */}
+          {connectPoolError && currentStep === "connect" && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{connectPoolError}</AlertDescription>
             </Alert>
           )}
 
-          {/* Connect pool status */}
-          {isConnectingPool && !connectPoolSuccess && (
-            <Alert className="mb-4 bg-blue-50 border-blue-200">
-              <AlertDescription className="flex items-center">
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Connecting to distribution pool...
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {connectPoolSuccess && (
-            <Alert className="mb-4 bg-green-50 border-green-200">
-              <AlertDescription className="text-green-700">
-                Successfully connected to distribution pool!
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-6">
-            <div>
-              <Label htmlFor="amount" className="mb-2 block">
-                Amount to Deposit
-              </Label>
-              <div className="flex items-center space-x-2">
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  min={minAmount}
-                  max={maxAmount}
-                  step="0.01"
-                  disabled={isLoading || isLoadingBalance || isLoadingAllowance}
-                  className="flex-1"
-                />
-                <span className="text-sm font-medium">{asset.symbol}</span>
-              </div>
-
-              {isLoadingBalance ? (
-                <div className="flex items-center justify-center mt-4">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">
-                    Loading balance...
-                  </span>
+          {/* Step content */}
+          {currentStep === "approve" && (
+            <div className="space-y-6">
+              <div>
+                <Label htmlFor="amount" className="mb-2 block">
+                  Amount to Deposit
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="amount"
+                    type="number"
+                    value={amount}
+                    onChange={handleAmountChange}
+                    placeholder="0.00"
+                    min={minAmount}
+                    max={maxAmount}
+                    step="0.01"
+                    disabled={
+                      isLoading || isLoadingBalance || isLoadingAllowance
+                    }
+                    className="flex-1 text-black"
+                  />
+                  <span className="text-sm font-medium">{asset.symbol}</span>
                 </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                    <span>
-                      Min: {minAmount} {asset.symbol}
-                    </span>
-                    <span>
-                      Max: {maxAmount.toFixed(4)} {asset.symbol}
+
+                {isLoadingBalance ? (
+                  <div className="flex items-center justify-center mt-4">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">
+                      Loading balance...
                     </span>
                   </div>
-
-                  <Slider
-                    defaultValue={[0]}
-                    value={[sliderValue]}
-                    onValueChange={handleSliderChange}
-                    max={100}
-                    step={1}
-                    disabled={
-                      isLoading ||
-                      isLoadingBalance ||
-                      isLoadingAllowance ||
-                      maxAmount <= 0
-                    }
-                  />
-
-                  <div className="flex justify-between">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Selected: </span>
-                      <span className="font-medium">{sliderValue}%</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Amount: </span>
-                      <span className="font-medium">
-                        {amount} {asset.symbol}
+                ) : (
+                  <div className="mt-6 space-y-4">
+                    <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                      <span>
+                        Min: {minAmount} {asset.symbol}
+                      </span>
+                      <span>
+                        Max: {maxAmount.toFixed(4)} {asset.symbol}
                       </span>
                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Estimated yield information */}
-            <div className="bg-purple-900/10 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Estimated Yield</h4>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">APY:</span>
-                <span className="font-medium text-purple-500">
-                  {asset.yieldRate}%
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Monthly Yield:</span>
-                <span className="font-medium text-purple-500">
-                  {(Number(amount || 0) * (asset.yieldRate / 100 / 12)).toFixed(
-                    4
-                  )}{" "}
-                  USDC
-                </span>
-              </div>
-            </div>
+                    <Slider
+                      defaultValue={[100]}
+                      value={[sliderValue]}
+                      onValueChange={handleSliderChange}
+                      max={100}
+                      step={1}
+                      disabled={
+                        isLoading ||
+                        isLoadingBalance ||
+                        isLoadingAllowance ||
+                        maxAmount <= 0
+                      }
+                    />
 
-            {/* Allowance information */}
-            {!isLoadingAllowance && (
-              <div className="text-sm text-muted-foreground flex flex-col">
-                <div className="flex items-center justify-between">
-                  <span>
-                    Current Allowance:{" "}
-                    {allowance !== undefined
-                      ? formatUnits(allowance, balanceData?.decimals || 18)
-                      : "0"}{" "}
-                    {asset.symbol}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRefreshAllowance}
-                    disabled={isLoadingAllowance}
-                    className="h-6 px-2"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={isLoadingAllowance ? "animate-spin" : ""}
-                    >
-                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                      <path d="M3 3v5h5"></path>
-                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
-                      <path d="M16 21h5v-5"></path>
-                    </svg>
-                  </Button>
-                </div>
-                {allowanceError && (
-                  <div className="text-red-500 mt-1 text-xs">
-                    Error: {allowanceError.message}
+                    <div className="flex justify-between">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">
+                          Selected:{" "}
+                        </span>
+                        <span className="font-medium">{sliderValue}%</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Amount: </span>
+                        <span className="font-medium">
+                          {amount} {asset.symbol}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+
+              {/* Estimated yield information */}
+              <div className="bg-purple-900/10 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Estimated Yield</h4>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">APY:</span>
+                  <span className="font-medium text-purple-500">
+                    {asset.yieldRate}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monthly Yield:</span>
+                  <span className="font-medium text-purple-500">
+                    {(
+                      Number(amount || 0) *
+                      (asset.yieldRate / 100 / 12)
+                    ).toFixed(4)}{" "}
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              {/* Allowance information */}
+              {!isLoadingAllowance && (
+                <div className="text-sm text-muted-foreground flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <span>
+                      Current Allowance:{" "}
+                      {allowance !== undefined
+                        ? formatUnits(allowance, balanceData?.decimals || 18)
+                        : "0"}{" "}
+                      {asset.symbol}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRefreshAllowance}
+                      disabled={isLoadingAllowance}
+                      className="h-6 px-2"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={isLoadingAllowance ? "animate-spin" : ""}
+                      >
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                        <path d="M16 21h5v-5"></path>
+                      </svg>
+                    </Button>
+                  </div>
+                  {allowanceError && (
+                    <div className="text-red-500 mt-1 text-xs">
+                      Error: {allowanceError.message}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentStep === "deposit" && (
+            <div className="space-y-6">
+              <div>
+                <Label htmlFor="deposit-amount" className="mb-2 block">
+                  Amount to Deposit
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="deposit-amount"
+                    type="number"
+                    value={amount}
+                    disabled={true}
+                    className="flex-1 text-black"
+                  />
+                  <span className="text-sm font-medium">{asset.symbol}</span>
+                </div>
+              </div>
+
+              {/* Estimated yield information */}
+              <div className="bg-purple-900/10 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Estimated Yield</h4>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">APY:</span>
+                  <span className="font-medium text-purple-500">
+                    {asset.yieldRate}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monthly Yield:</span>
+                  <span className="font-medium text-purple-500">
+                    {(
+                      Number(amount || 0) *
+                      (asset.yieldRate / 100 / 12)
+                    ).toFixed(4)}{" "}
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 border border-purple-200 rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Ready to Deposit Fluid
+                </h3>
+                <p className="text-sm text-white mb-4">
+                  You've approved {amount} {asset.symbol}. Now deposit your
+                  fluid to start earning yield.
+                </p>
+
+                {isDepositLoading || isDepositing ? (
+                  <div className="flex items-center justify-center p-2 bg-purple-100 rounded">
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin text-purple-600" />
+                    <span className="text-purple-700">Depositing fluid...</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {currentStep === "connect" && (
+            <div className="space-y-6">
+              <div>
+                <Label htmlFor="connect-amount" className="mb-2 block">
+                  Deposited Amount
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="connect-amount"
+                    type="number"
+                    value={amount}
+                    disabled={true}
+                    className="flex-1 text-black"
+                  />
+                  <span className="text-sm font-medium">{asset.symbol}</span>
+                </div>
+              </div>
+
+              {/* Estimated yield information */}
+              <div className="bg-purple-900/10 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Estimated Yield</h4>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">APY:</span>
+                  <span className="font-medium text-purple-500">
+                    {asset.yieldRate}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Monthly Yield:</span>
+                  <span className="font-medium text-purple-500">
+                    {(
+                      Number(amount || 0) *
+                      (asset.yieldRate / 100 / 12)
+                    ).toFixed(4)}{" "}
+                    USDC
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 border border-purple-200 rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  Fluid Deposited Successfully!
+                </h3>
+                <p className="text-sm text-white mb-4">
+                  To start receiving yield, you need to connect to the output
+                  flow.
+                </p>
+
+                {connectPoolError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 mb-2">
+                      {connectPoolError}
+                    </p>
+                    <Button
+                      onClick={fetchPoolAddress}
+                      variant="outline"
+                      size="sm"
+                      className="bg-purple-50 hover:bg-purple-100 border-purple-200"
+                    >
+                      Retry Fetching Distribution Pool
+                    </Button>
+                  </div>
+                )}
+
+                {isConnectPoolLoading || isConnectPoolPending ? (
+                  <div className="flex items-center justify-center p-2 bg-purple-100 rounded">
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin text-purple-600" />
+                    <span className="text-purple-700">
+                      Connecting to output flow...
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          {isLoadingAllowance ? (
-            <Button disabled className="w-full">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Checking allowance...
-            </Button>
-          ) : shouldShowApproveButton ? (
+          {currentStep === "approve" && (
             <Button
               onClick={handleApprove}
               disabled={!isAmountValid || isApproving || isApproveLoading}
@@ -731,19 +872,40 @@ export function DepositForm({ assetType }: DepositFormProps) {
                 `Approve ${asset.symbol}`
               )}
             </Button>
-          ) : (
+          )}
+
+          {currentStep === "deposit" && (
             <Button
               onClick={handleDeposit}
-              disabled={!isAmountValid || isDepositing || isDepositLoading}
+              disabled={isDepositing || isDepositLoading}
               className="w-full bg-purple-700 hover:bg-purple-600"
             >
               {isDepositing || isDepositLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Drill...
+                  Depositing Fluid...
                 </>
               ) : (
-                "Create Drill"
+                "Deposit Fluid"
+              )}
+            </Button>
+          )}
+
+          {currentStep === "connect" && (
+            <Button
+              onClick={handleConnectPool}
+              disabled={
+                !poolAddress || isConnectPoolLoading || isConnectPoolPending
+              }
+              className="w-full bg-purple-700 hover:bg-purple-600"
+            >
+              {isConnectPoolLoading || isConnectPoolPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting Output Flow...
+                </>
+              ) : (
+                "Connect Output Flow"
               )}
             </Button>
           )}
@@ -752,12 +914,7 @@ export function DepositForm({ assetType }: DepositFormProps) {
             variant="outline"
             className="w-full"
             onClick={() => router.back()}
-            disabled={
-              isApproving ||
-              isApproveLoading ||
-              isDepositing ||
-              isDepositLoading
-            }
+            disabled={isLoading}
           >
             Cancel
           </Button>

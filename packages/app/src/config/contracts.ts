@@ -54,7 +54,7 @@ export const YIELD_BOX_ABI = [
   },
   {
     type: "function",
-    name: "poolAddress",
+    name: "distributionPool",
     inputs: [],
     outputs: [
       { name: "", type: "address", internalType: "contract ISuperfluidPool" },
