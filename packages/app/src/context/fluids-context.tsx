@@ -385,9 +385,6 @@ export function FluidsProvider({ children }: { children: React.ReactNode }) {
     // Only call refreshFluids once on mount
     refreshFluidsRef.current();
 
-    // Remove the interval to prevent excessive calls
-    // If you need periodic updates, consider using a much longer interval
-    // or implementing a manual refresh button instead
   }, []); // Empty dependency array to ensure it only runs once on mount
 
   // Add a debug effect to track loading state changes

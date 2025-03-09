@@ -63,8 +63,7 @@ export default function Home() {
     return fluids
       .filter((fluid) => !userDrillFluidIds.has(fluid.id)) // Only include fluids not already being drilled
       .map((fluid, index) => {
-        // FIXED AMOUNT: Use exactly 130 as requested
-        const fixedAmount = 130;
+        const fixedAmount = 205;
 
         console.log(`Example drill for ${fluid.id}:`, {
           fixedAmount,

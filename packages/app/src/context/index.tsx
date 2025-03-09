@@ -11,6 +11,8 @@ import {
   useAccount,
   useConnect,
   useDisconnect,
+  useNetwork,
+  useSwitchNetwork,
   useChainId,
   useSwitchChain,
 } from "wagmi";
@@ -29,9 +31,9 @@ const queryClient = new QueryClient({
 // Initialize AppKit
 createAppKit({
   adapters: [wagmiAdapter],
-  projectId: projectId as string,
+  projectId,
   defaultNetwork: networks[0],
-  networks: [...networks],
+  networks,
   features: {
     analytics: false,
   },
@@ -57,7 +59,7 @@ function Web3Provider({ children }: { children: ReactNode }) {
     connect: () => connectAsync({ connector: injected() }),
     disconnect: () => disconnectAsync(),
     switchChain: (chainId: number) => switchChainAsync({ chainId }),
-    error: switchError ? new Error(switchError.message) : undefined,
+    error: switchError,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;

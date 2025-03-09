@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import {
+  type Account,
   useAccount,
   useConnect,
   useDisconnect,
