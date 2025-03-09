@@ -10,3 +10,6 @@
 [submodule "packages/contracts/lib/superfluid-protocol"]
 	path = packages/contracts/lib/superfluid-protocol
 	url = https://github.com/superfluid-finance/protocol-monorepo
+[submodule "packages/contracts/lib/v3-core"]
+	path = packages/contracts/lib/v3-core
+	url = https://github.com/uniswap/v3-core
