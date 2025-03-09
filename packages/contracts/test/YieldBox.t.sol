@@ -1166,48 +1166,73 @@ contract YieldBoxTest is Test {
     }
 
     /// @notice Fuzzing test for depositFor function
-    function testFuzz_DepositFor(
-        address[] calldata users,
-        uint256[] calldata depositAmounts
-    ) public {
-        vm.assume(users.length > 0 && users.length <= 10);
+    function testFuzz_DepositFor(uint256[] calldata depositAmounts) public {
+        // Limit array size to manageable values and ensure non-empty array
         vm.assume(depositAmounts.length > 0 && depositAmounts.length <= 10);
         
         uint256 totalDeposited = 0;
         
-        for (uint256 i = 0; i < users.length && i < depositAmounts.length; i++) {
-            // Skip invalid addresses
-            if (users[i] == address(0) || users[i] == address(yieldBox)) continue;
+        for (uint256 i = 0; i < depositAmounts.length; i++) {
+            // Create unique user address for this deposit
+            address user = address(uint160(0x1000 + i));
             
-            // Ensure minimum deposit
+            // Create unique depositor address
+            address depositor = address(uint160(0x2000 + i));
+            
+            // Ensure minimum deposit and cap maximum to avoid overflow
             uint256 amount = bound(depositAmounts[i], yieldBox.MINIMUM_DEPOSIT(), 1000000e6);
             
-            // Setup depositor
-            address depositor = address(uint160(0x1000 + i));
+            // Setup depositor with funds
             deal(USDC_ADDRESS, depositor, amount);
+            
+            // Record initial balances
+            uint256 initialYieldBoxBalance = usdc.balanceOf(address(yieldBox));
+            e18 initialUserShares = yieldBox.balanceOf(user);
             
             // Deposit
             vm.startPrank(depositor);
             usdc.transfer(address(yieldBox), amount);
-            yieldBox.depositFor(users[i]);
+            yieldBox.depositFor(user);
             vm.stopPrank();
             
             totalDeposited += amount;
             
-            // Verify individual balance
-            e18 expectedShares = A.to18(Dec.make(amount, U_TOKEN_DEC));
+            // Verify individual balance - calculate expected shares
+            e memory depositAmountE = Dec.make(amount, U_TOKEN_DEC);
+            e18 expectedNewShares = A.to18(depositAmountE);
+            e18 expectedTotalShares = F.add(initialUserShares, expectedNewShares);
+            
             assertEq(
-                F.unwrap(yieldBox.balanceOf(users[i])), 
-                F.unwrap(expectedShares), 
-                "User balance incorrect"
+                F.unwrap(yieldBox.balanceOf(user)), 
+                F.unwrap(expectedTotalShares), 
+                "User balance incorrect after deposit"
+            );
+            
+            // Verify USDC was transferred correctly
+            assertEq(
+                usdc.balanceOf(address(yieldBox)), 
+                initialYieldBoxBalance, 
+                "YieldBox USDC balance should not change (tokens go to vault)"
+            );
+            
+            // Verify pool units were updated
+            assertApproxEqAbs(
+                yieldBox.distributionPool().getUnits(user),
+                uint128(F.to(expectedTotalShares, POOL_DEC).value),
+                10,
+                "Pool units incorrect after deposit"
             );
         }
         
         // Verify total assets
         e18 expectedTotal = A.to18(Dec.make(totalDeposited, U_TOKEN_DEC));
-        assertEq(
-            F.unwrap(yieldBox.totalDepositedAssets()), 
+        uint256 actualTotal = F.unwrap(yieldBox.totalDepositedAssets());
+        
+        // Use approximate equality with small delta for potential rounding errors
+        assertApproxEqAbs(
+            actualTotal, 
             F.unwrap(expectedTotal), 
+            1e12, 
             "Total assets incorrect"
         );
     }

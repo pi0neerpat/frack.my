@@ -39,8 +39,8 @@ interface IYieldBox {
 
     // State-changing functions
     function deposit(uint256 assets) external;
+    function depositFor(address user) external;
     function withdraw(e18 amount) external;
     function harvest() external returns (e memory);
     function adjustFlow() external returns (int96 flowRate);
-    function depositFor(address user) external;
 }
